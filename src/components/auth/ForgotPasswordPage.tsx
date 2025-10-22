@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Send, ArrowLeft } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 
 interface ForgotPasswordPageProps {
   onNavigateToLogin: () => void;
@@ -33,14 +35,22 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const auth = getAuth();
+      await sendPasswordResetEmail(auth, email);
       showToast(`Password reset link sent to ${email}`, 'success');
-      setIsLoading(false);
       setTimeout(() => {
         onNavigateToLogin();
       }, 2000);
-    }, 1000);
+    } catch (error) {
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      showToast(errorMessage, 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
