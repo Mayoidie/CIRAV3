@@ -33,7 +33,7 @@
             "clsx": "*",
             "cmdk": "^1.1.1",
             "embla-carousel-react": "^8.6.0",
-            "firebase": "^12.4.0",
+            "firebase": "9.6.1",
             "input-otp": "^1.4.2",
             "lucide-react": "^0.487.0",
             "motion": "*",
@@ -51,10 +51,10 @@
       "devDependencies": {
             "@types/node": "^20.10.0",
             "@vitejs/plugin-react-swc": "^3.10.2",
-            "vite": "^6.4.1"
+            "vite": "^5.0.0"
       },
       "scripts": {
-            "dev": "npx vite",
-            "build": "npx vite build"
+            "dev": "vite",
+            "build": "node node_modules/vite/bin/vite.js build"
       }
 }
