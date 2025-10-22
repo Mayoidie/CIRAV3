@@ -55,7 +55,6 @@
       },
       "scripts": {
             "dev": "vite",
-            "build": "vite build",
-            "postinstall": "chmod +x node_modules/.bin/vite && chmod +x node_modules/@esbuild/linux-x64/bin/esbuild"
+            "build": "chmod +x node_modules/.bin/vite && chmod +x node_modules/@esbuild/linux-x64/bin/esbuild && vite build"
       }
 }
