@@ -54,7 +54,7 @@
             "vite": "^6.4.1"
       },
       "scripts": {
-            "dev": "vite",
-            "build": "chmod +x node_modules/.bin/vite && chmod +x node_modules/@esbuild/linux-x64/bin/esbuild && vite build"
+            "dev": "npx vite",
+            "build": "npx vite build"
       }
 }
