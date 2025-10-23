@@ -74,15 +74,20 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
-
-      await setDoc(doc(db, "users", user.uid), {
+      
+      const userData: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         studentId: formData.studentId,
-        role: 'student',
-        ...(formData.role === 'class-representative' && { requestedRole: 'class-representative' }),
-      });
+        role: 'student', 
+      };
+
+      if (formData.role === 'class-representative') {
+        userData.requestedRole = 'class-representative';
+      }
+
+      await setDoc(doc(db, "users", user.uid), userData);
 
       await sendEmailVerification(user);
       onSignupSuccess(formData.email);
