@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Search, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle } from 'lucide-react';
+import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Search, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle, Users } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { TicketCard } from '../tickets/TicketCard';
 import { useToast } from '../ui/toast-container';
 import { SettingsPage } from '../settings/SettingsPage';
+import { UserManagement } from './UserManagement';
 
 interface TicketType {
   id: string;
@@ -19,10 +20,11 @@ interface TicketType {
 
 export const AdminDashboard: React.FC = () => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [activeTab, setActiveTab] = useState<'review' | 'settings'>('review');
+  const [activeTab, setActiveTab] = useState<'review' | 'settings' | 'user-management'>('review');
   const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
+  
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleReject = async (ticketId: string) => {
+  const handleTicketReject = async (ticketId: string) => {
     const note = rejectionNote[ticketId];
     if (!note || note.trim() === '') {
       showToast('Please provide a reason for rejecting the ticket.', 'error');
@@ -121,7 +123,8 @@ export const AdminDashboard: React.FC = () => {
   ];
 
   const tabs = [
-    { id: 'review', label: 'Review Tickets', icon: ClipboardList },
+    { id: 'review', label: 'Tickets', icon: ClipboardList },
+    { id: 'user-management', label: 'User Management', icon: Users },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -130,7 +133,7 @@ export const AdminDashboard: React.FC = () => {
       case 'pending':
         return {
           onApprove: () => handleStatusUpdate(ticket.id, 'approved'),
-          onReject: () => handleReject(ticket.id),
+          onReject: () => handleTicketReject(ticket.id),
           showActions: reviewFilter === 'pending',
         };
       case 'approved':
@@ -158,7 +161,7 @@ export const AdminDashboard: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="text-[#1E1E1E] mb-2">Admin Dashboard</h1>
-        <p className="text-[#7A7A7A]">Manage tickets</p>
+        <p className="text-[#7A7A7A]">Manage tickets and users</p>
       </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
@@ -216,6 +219,12 @@ export const AdminDashboard: React.FC = () => {
                 ))}
               </div>
             )}
+          </motion.div>
+        )}
+
+        {activeTab === 'user-management' && (
+          <motion.div key="user-management" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+            <UserManagement />
           </motion.div>
         )}
 
