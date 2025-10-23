@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Calendar, MapPin, AlertCircle, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, MapPin, AlertCircle, Trash2, CheckCircle, XCircle, PlayCircle } from 'lucide-react';
 
 interface Ticket {
   id: string;
@@ -23,15 +23,19 @@ interface TicketCardProps {
   onDelete?: (id: string) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  onStartProgress?: (id: string) => void;
+  onResolve?: (id: string) => void;
   showActions?: boolean;
 }
 
-export const TicketCard: React.FC<TicketCardProps> = ({ 
-  ticket, 
-  onDelete, 
-  onApprove, 
+export const TicketCard: React.FC<TicketCardProps> = ({
+  ticket,
+  onDelete,
+  onApprove,
   onReject,
-  showActions = false 
+  onStartProgress,
+  onResolve,
+  showActions = false
 }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -120,9 +124,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 
       {ticket.imageUrl && (
         <div className="mb-4">
-          <img 
-            src={ticket.imageUrl} 
-            alt="Issue" 
+          <img
+            src={ticket.imageUrl}
+            alt="Issue"
             className="w-full h-48 object-cover rounded-lg"
           />
         </div>
@@ -142,28 +146,52 @@ export const TicketCard: React.FC<TicketCardProps> = ({
         </div>
       )}
 
-      {showActions && ticket.status === 'pending' && (
+      {showActions && (
         <div className="flex gap-2 pt-4 border-t">
-          {onApprove && (
+          {ticket.status === 'pending' && onApprove && onReject && (
+            <>
+              <motion.button
+                onClick={() => onApprove(ticket.id)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>Approve</span>
+              </motion.button>
+              <motion.button
+                onClick={() => onReject(ticket.id)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#FF4D4F] text-white rounded-lg hover:bg-[#FF4D4F]/90 transition-all"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Reject</span>
+              </motion.button>
+            </>
+          )}
+
+          {ticket.status === 'approved' && onStartProgress && (
             <motion.button
-              onClick={() => onApprove(ticket.id)}
+              onClick={() => onStartProgress(ticket.id)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#3942A7] text-white rounded-lg hover:bg-[#3942A7]/90 transition-all"
+            >
+              <PlayCircle className="w-4 h-4" />
+              <span>Start Working</span>
+            </motion.button>
+          )}
+
+          {ticket.status === 'in-progress' && onResolve && (
+            <motion.button
+              onClick={() => onResolve(ticket.id)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all"
             >
               <CheckCircle className="w-4 h-4" />
-              <span>Approve</span>
-            </motion.button>
-          )}
-          {onReject && (
-            <motion.button
-              onClick={() => onReject(ticket.id)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#FF4D4F] text-white rounded-lg hover:bg-[#FF4D4F]/90 transition-all"
-            >
-              <XCircle className="w-4 h-4" />
-              <span>Reject</span>
+              <span>Mark as Resolved</span>
             </motion.button>
           )}
         </div>
