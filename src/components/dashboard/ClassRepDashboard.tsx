@@ -21,7 +21,7 @@ interface TicketType {
 export const ClassRepDashboard: React.FC = () => {
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'review' | 'report' | 'settings'>('my-tickets');
-  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all'); // Removed 'pending'
   const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
@@ -111,7 +111,6 @@ export const ClassRepDashboard: React.FC = () => {
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
-  const pendingMyTickets = myTickets.filter(t => t.status === 'pending');
   const approvedMyTickets = myTickets.filter(t => t.status === 'approved');
   const inProgressMyTickets = myTickets.filter(t => t.status === 'in-progress');
   const resolvedMyTickets = myTickets.filter(t => t.status === 'resolved');
@@ -149,7 +148,7 @@ export const ClassRepDashboard: React.FC = () => {
           <motion.div key="my-tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
                 <button onClick={() => setMyTicketsFilter('all')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${myTicketsFilter === 'all' ? 'bg-[#1B1F50] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>All ({myTickets.length})</button>
-                <button onClick={() => setMyTicketsFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${myTicketsFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingMyTickets.length})</button>
+                {/* Removed Pending tab as Class Rep tickets are auto-approved */}
                 <button onClick={() => setMyTicketsFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${myTicketsFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedMyTickets.length})</button>
                 <button onClick={() => setMyTicketsFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${myTicketsFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressMyTickets.length})</button>
                 <button onClick={() => setMyTicketsFilter('resolved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${myTicketsFilter === 'resolved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Resolved ({resolvedMyTickets.length})</button>
@@ -204,7 +203,7 @@ export const ClassRepDashboard: React.FC = () => {
 
         {activeTab === 'report' && (
           <motion.div key="report" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <TicketForm onSuccess={() => setActiveTab('my-tickets')} />
+            <TicketForm onSuccess={() => { setActiveTab('my-tickets'); setMyTicketsFilter('approved'); }} />
           </motion.div>
         )}
 
