@@ -16,6 +16,7 @@ interface TicketType {
   status: 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
+  resolutionNote?: string;
 }
 
 export const AdminDashboard: React.FC = () => {
@@ -24,7 +25,8 @@ export const AdminDashboard: React.FC = () => {
   const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
-  
+  const [resolutionNote, setResolutionNote] = useState<{ [key: string]: string }>({});
+
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -69,11 +71,24 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = async (ticketId: string, status: TicketType['status']) => {
+  const handleStatusUpdate = async (ticketId: string, status: TicketType['status'], note?: string) => {
     try {
       const ticketRef = doc(db, 'tickets', ticketId);
-      await updateDoc(ticketRef, { status });
+      const updateData: { status: TicketType['status']; resolutionNote?: string } = { status };
+
+      if (status === 'resolved' && note) {
+        updateData.resolutionNote = note;
+      }
+      
+      await updateDoc(ticketRef, updateData);
       showToast(`Ticket status updated to ${status}`, 'success');
+      if (status === 'resolved') {
+        setResolutionNote(prev => {
+          const updated = { ...prev };
+          delete updated[ticketId];
+          return updated;
+        });
+      }
     } catch (error) {
       showToast('Failed to update ticket status', 'error');
     }
@@ -98,6 +113,15 @@ export const AdminDashboard: React.FC = () => {
     } catch (error) {
       showToast('Failed to reject ticket', 'error');
     }
+  };
+
+  const handleResolveWithNote = async (ticketId: string) => {
+    const note = resolutionNote[ticketId];
+    if (!note || note.trim() === '') {
+      showToast('Please provide a resolution note for the ticket.', 'error');
+      return;
+    }
+    await handleStatusUpdate(ticketId, 'resolved', note);
   };
 
   const filteredTickets = tickets
@@ -143,7 +167,7 @@ export const AdminDashboard: React.FC = () => {
         };
       case 'in-progress':
         return {
-          onResolve: () => handleStatusUpdate(ticket.id, 'resolved'),
+          onResolve: () => handleResolveWithNote(ticket.id),
           showActions: reviewFilter === 'in-progress',
         };
       case 'resolved':
@@ -214,6 +238,9 @@ export const AdminDashboard: React.FC = () => {
                     />
                     {reviewFilter === 'pending' && ticket.status === 'pending' && (
                       <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={rejectionNote[ticket.id] || ''} onChange={(e) => setRejectionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add rejection note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
+                    )}
+                    {reviewFilter === 'in-progress' && ticket.status === 'in-progress' && (
+                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={resolutionNote[ticket.id] || ''} onChange={(e) => setResolutionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add resolution note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
                     )}
                   </div>
                 ))}
