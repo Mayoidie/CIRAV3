@@ -6,6 +6,7 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { auth, db } from '../../lib/firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import MainLogoWhite from '../../assets/MainLogoWhite.png';
 
 interface SignupPageProps {
   onNavigateToLogin: () => void;
@@ -122,7 +123,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
               style={{ width: '100px', height: '100px' }}
             >
               <ImageWithFallback
-                src="src/assets/MainLogoWhite.png"
+                src={MainLogoWhite}
                 alt="CIRA"
                 className="w-full h-full object-cover"
               />
