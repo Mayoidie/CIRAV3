@@ -42,14 +42,13 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#3942A7] to-[#1B1F50] rounded-lg flex items-center justify-center overflow-hidden">
+            <div className="rounded-lg flex items-center justify-center overflow-hidden" style={{ width: 'auto', height: '60px' }}>
               <ImageWithFallback
-                src="https://images.unsplash.com/photo-1737505599159-5ffc1dcbc08f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMHRlY2hub2xvZ3klMjBjaXJjdWl0fGVufDF8fHx8MTc2MDQzOTM5M3ww&ixlib=rb-4.1.0&q=80&w=1080"
+                src="src/assets/UpdatedNavyBlueLogo.png"
                 alt="CIRA"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
-            <h2 className="text-[#1E1E1E]">CIRA</h2>
           </div>
 
           {/* User Info */}
