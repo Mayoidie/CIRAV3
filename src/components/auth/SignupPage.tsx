@@ -119,14 +119,14 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
               className="w-20 h-20 bg-white mx-auto mb-4 flex items-center justify-center"
+              style={{ width: '100px', height: '100px' }}
             >
               <ImageWithFallback
-                src="src/assets/MainLogoNavyBlue.png"
+                src="src/assets/MainLogoWhite.png"
                 alt="CIRA"
                 className="w-full h-full object-cover"
               />
             </motion.div>
-            <h1 className="text-white mb-2">CIRA</h1>
             <p className="text-white/80">Create your account</p>
           </div>
 

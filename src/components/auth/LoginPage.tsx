@@ -78,11 +78,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
       >
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           <div className="bg-gradient-to-r from-[#3942A7] to-[#1B1F50] p-8 text-center">
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }} className="w-20 h-20 bg-white mx-auto mb-4 flex items-center justify-center">
-              <ImageWithFallback src="src/assets/MainLogoNavyBlue.png" alt="CIRA" className="w-full h-full object-cover" />
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }} className="w-20 h-20 mx-auto mb-4 flex items-center justify-center" style={{ width: '120px', height: '120px' }}>
+              <ImageWithFallback src="src/assets/MainLogoWhite.png" alt="CIRA" className="w-full h-full object-cover" />
             </motion.div>
-            <h1 className="text-white mb-2">CIRA</h1>
-            <p className="text-white/80">Computer Issue Reporting & Analytics</p>
+            <p className="text-white/80">Computer Issue Reporting Application</p>
           </div>
 
           <div className="p-8">

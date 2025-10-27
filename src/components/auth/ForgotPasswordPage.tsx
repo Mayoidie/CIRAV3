@@ -69,14 +69,14 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
               className="w-20 h-20 bg-white rounded-full mx-auto mb-4 flex items-center justify-center"
+              style={{ width: '100px', height: '100px' }}
             >
               <ImageWithFallback
-                src="src/assets/MainLogoNavyBlue.png"
+                src="src/assets/MainLogoWhite.png"
                 alt="CIRA"
                 className="w-full h-full object-cover rounded-full"
               />
             </motion.div>
-            <h1 className="text-white mb-2">CIRA</h1>
             <p className="text-white/80">Reset your password</p>
           </div>
 
