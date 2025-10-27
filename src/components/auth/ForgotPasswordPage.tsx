@@ -5,6 +5,7 @@ import { Mail, Send, ArrowLeft } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import MainLogoWhite from '../../assets/MainLogoWhite.png';
 
 interface ForgotPasswordPageProps {
   onNavigateToLogin: () => void;
@@ -72,7 +73,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               style={{ width: '100px', height: '100px' }}
             >
               <ImageWithFallback
-                src="src/assets/MainLogoWhite.png"
+                src={MainLogoWhite}
                 alt="CIRA"
                 className="w-full h-full object-cover rounded-full"
               />

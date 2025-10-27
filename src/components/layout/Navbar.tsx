@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { LogOut, User as UserIcon } from 'lucide-react';
 import { User } from '../../lib/mockData';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import UpdatedNavyBlueLogo from '../../assets/UpdatedNavyBlueLogo.png';
 
 interface NavbarProps {
   user: User;
@@ -44,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
           <div className="flex items-center gap-3">
             <div className="rounded-lg flex items-center justify-center overflow-hidden" style={{ width: 'auto', height: '60px' }}>
               <ImageWithFallback
-                src="src/assets/UpdatedNavyBlueLogo.png"
+                src={UpdatedNavyBlueLogo}
                 alt="CIRA"
                 className="w-full h-full object-contain"
               />

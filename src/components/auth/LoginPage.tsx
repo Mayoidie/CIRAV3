@@ -6,6 +6,7 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { auth, db } from '../../lib/firebase';
 import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import MainLogoWhite from '../../assets/MainLogoWhite.png';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -79,7 +80,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           <div className="bg-gradient-to-r from-[#3942A7] to-[#1B1F50] p-8 text-center">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }} className="w-20 h-20 mx-auto mb-4 flex items-center justify-center" style={{ width: '120px', height: '120px' }}>
-              <ImageWithFallback src="src/assets/MainLogoWhite.png" alt="CIRA" className="w-full h-full object-cover" />
+              <ImageWithFallback src={MainLogoWhite} alt="CIRA" className="w-full h-full object-cover" />
             </motion.div>
             <p className="text-white/80">Computer Issue Reporting Application</p>
           </div>
