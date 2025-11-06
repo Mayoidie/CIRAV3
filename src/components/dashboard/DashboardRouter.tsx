@@ -11,17 +11,18 @@ interface User {
 
 interface DashboardRouterProps {
   user: User;
+  logoClickTime: number;
 }
 
 // This is a stateless component that receives the user object and renders the correct dashboard.
-export const DashboardRouter: React.FC<DashboardRouterProps> = ({ user }) => {
+export const DashboardRouter: React.FC<DashboardRouterProps> = ({ user, logoClickTime }) => {
   switch (user.role) {
     case 'admin':
-      return <AdminDashboard />;
+      return <AdminDashboard logoClickTime={logoClickTime}/>;
     case 'class-representative':
-      return <ClassRepDashboard />;
+      return <ClassRepDashboard logoClickTime={logoClickTime}/>;
     case 'student':
     default:
-      return <StudentDashboard />;
+      return <StudentDashboard logoClickTime={logoClickTime}/>;
   }
 };

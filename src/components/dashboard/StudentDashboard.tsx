@@ -17,12 +17,23 @@ interface TicketType {
   userId: string;
 }
 
-export const StudentDashboard: React.FC = () => {
+interface StudentDashboardProps {
+  logoClickTime: number;
+}
+
+export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'report' | 'settings'>('my-tickets');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  useEffect(() => {
+    if (logoClickTime > 0) {
+      setActiveTab('my-tickets');
+    }
+  }, [logoClickTime]);
+
 
   const fetchTickets = useCallback(() => {
     if (auth.currentUser) {

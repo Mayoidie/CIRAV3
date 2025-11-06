@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LoginPage } from './components/auth/LoginPage';
 import { SignupPage } from './components/auth/SignupPage';
 import { ForgotPasswordPage } from './components/auth/ForgotPasswordPage';
@@ -20,6 +20,9 @@ interface User {
 
 type Page = 'login' | 'signup' | 'forgot-password' | 'dashboard' | 'verification';
 
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 1 minute
+const IMPENDING_LOGOUT_WARNING_TIME = 10 * 1000; // 10 seconds before timeout
+
 const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('login');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -28,6 +31,36 @@ const AppContent: React.FC = () => {
   const [isResending, setIsResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const { showToast } = useToast();
+  const [logoClickTime, setLogoClickTime] = useState<number>(0);
+
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const logoutToastTimeoutId = useRef<NodeJS.Timeout | null>(null);
+
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    if (logoutToastTimeoutId.current) {
+      clearTimeout(logoutToastTimeoutId.current);
+      logoutToastTimeoutId.current = null; // Clear the impending logout toast timeout
+    }
+
+    if (firebaseUser && firebaseUser.emailVerified && currentPage === 'dashboard') {
+      // Set a timer for the impending logout warning
+      logoutToastTimeoutId.current = setTimeout(() => {
+        showToast('You will be logged out in 10 seconds due to inactivity.', 'warning');
+      }, INACTIVITY_TIMEOUT - IMPENDING_LOGOUT_WARNING_TIME);
+
+      // Set the main inactivity timer
+      inactivityTimerRef.current = setTimeout(() => {
+        handleLogout('inactivity');
+      }, INACTIVITY_TIMEOUT);
+    }
+  }, [firebaseUser, currentPage, showToast]);
+
+  const handleActivity = useCallback(() => {
+    resetInactivityTimer();
+  }, [resetInactivityTimer]);
 
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, (user) => {
@@ -42,9 +75,12 @@ const AppContent: React.FC = () => {
               const userData = { id: user.uid, ...doc.data() } as User;
               setCurrentUser(userData);
               setCurrentPage('dashboard');
+              resetInactivityTimer(); // Start timer when user logs in and is verified
             } else {
               setCurrentUser(null);
               setCurrentPage('login');
+              if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+              if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
             }
             setIsLoading(false);
           });
@@ -53,16 +89,24 @@ const AppContent: React.FC = () => {
           setCurrentUser(null);
           setCurrentPage('verification');
           setIsLoading(false);
+          if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+          if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
         }
       } else {
         setCurrentUser(null);
         setCurrentPage('login');
         setIsLoading(false);
+        if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+        if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
       }
     });
 
-    return () => authUnsubscribe();
-  }, []);
+    return () => {
+      authUnsubscribe();
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
+    };
+  }, [resetInactivityTimer]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout | undefined;
@@ -78,20 +122,51 @@ const AppContent: React.FC = () => {
     };
   }, [cooldown]);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    if (firebaseUser && firebaseUser.emailVerified && currentPage === 'dashboard') {
+      document.addEventListener('mousemove', handleActivity);
+      document.addEventListener('keydown', handleActivity);
+      document.addEventListener('click', handleActivity);
+    } else {
+      document.removeEventListener('mousemove', handleActivity);
+      document.removeEventListener('keydown', handleActivity);
+      document.removeEventListener('click', handleActivity);
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleActivity);
+      document.removeEventListener('keydown', handleActivity);
+      document.removeEventListener('click', handleActivity);
+    };
+  }, [firebaseUser, currentPage, handleActivity]);
+
+  const handleLogout = (reason?: 'inactivity') => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+    if (logoutToastTimeoutId.current) {
+      clearTimeout(logoutToastTimeoutId.current);
+      logoutToastTimeoutId.current = null;
+    }
+
     signOut(auth).then(() => {
       setCurrentUser(null);
       setFirebaseUser(null);
       setCurrentPage('login');
-      showToast('Logged out successfully', 'info');
+      if (reason === 'inactivity') {
+        showToast('You have been logged out due to inactivity.', 'error');
+      } else {
+        showToast('Logged out successfully', 'info');
+      }
     });
   };
 
   const handleResendVerification = () => {
     if (firebaseUser && cooldown === 0) {
       setIsResending(true);
-      // We are now sending a basic verification email to ensure it works without
-      // requiring domain authorization in Firebase settings.
       sendEmailVerification(firebaseUser)
         .then(() => {
           showToast('A new verification email has been sent to your address.', 'success');
@@ -109,6 +184,10 @@ const AppContent: React.FC = () => {
           setIsResending(false);
         });
     }
+  };
+  
+    const handleLogoClick = () => {
+    setLogoClickTime(Date.now());
   };
 
   if (isLoading) {
@@ -164,9 +243,9 @@ const AppContent: React.FC = () => {
 
       {currentPage === 'dashboard' && currentUser && (
         <>
-          <Navbar user={currentUser} onLogout={handleLogout} />
+          <Navbar user={currentUser} onLogout={handleLogout} onLogoClick={handleLogoClick}/>
           <main className="flex-1 bg-[#F9FAFB]">
-            <DashboardRouter user={currentUser} />
+            <DashboardRouter user={currentUser} logoClickTime={logoClickTime}/>
           </main>
           <Footer />
         </>
