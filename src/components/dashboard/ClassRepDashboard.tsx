@@ -20,9 +20,10 @@ interface TicketType {
 
 interface ClassRepDashboardProps {
   logoClickTime: number;
+  profileClickTime: number;
 }
 
-export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickTime }) => {
+export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'review' | 'report' | 'settings'>('my-tickets');
   const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all'); // Removed 'pending'
@@ -36,6 +37,12 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
       setActiveTab('my-tickets');
     }
   }, [logoClickTime]);
+
+  useEffect(() => {
+    if (profileClickTime > 0) {
+      setActiveTab('settings');
+    }
+  }, [profileClickTime]);
 
   useEffect(() => {
     const ticketsCollection = collection(db, 'tickets');

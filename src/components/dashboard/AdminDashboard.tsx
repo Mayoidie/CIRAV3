@@ -21,10 +21,11 @@ interface TicketType {
 
 interface AdminDashboardProps {
   logoClickTime: number;
+  profileClickTime: number;
 }
 
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management'>('tickets');
   const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
@@ -39,6 +40,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime })
       setActiveTab('tickets');
     }
   }, [logoClickTime]);
+
+  useEffect(() => {
+    if (profileClickTime > 0) {
+      setActiveTab('settings');
+    }
+  }, [profileClickTime]);
 
 
   useEffect(() => {

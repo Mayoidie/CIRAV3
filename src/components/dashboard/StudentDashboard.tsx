@@ -19,9 +19,10 @@ interface TicketType {
 
 interface StudentDashboardProps {
   logoClickTime: number;
+  profileClickTime: number;
 }
 
-export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTime }) => {
+export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'report' | 'settings'>('my-tickets');
@@ -33,6 +34,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
       setActiveTab('my-tickets');
     }
   }, [logoClickTime]);
+
+  useEffect(() => {
+    if (profileClickTime > 0) {
+      setActiveTab('settings');
+    }
+  }, [profileClickTime]);
 
 
   const fetchTickets = useCallback(() => {

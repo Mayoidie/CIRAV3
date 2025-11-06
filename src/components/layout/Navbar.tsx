@@ -9,9 +9,10 @@ interface NavbarProps {
   user: User;
   onLogout: () => void;
   onLogoClick: () => void;
+  onProfileClick: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onLogoClick }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onLogoClick, onProfileClick }) => {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin':
@@ -53,9 +54,10 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onLogoClick }) =
             </div>
           </div>
 
-          {/* User Info */}
+          {/* User Info & Logout */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
+            {/* Profile Section */}
+            <div className="flex items-center gap-3 cursor-pointer" onClick={onProfileClick}>
               <div className="w-10 h-10 bg-gradient-to-br from-[#3942A7] to-[#1B1F50] rounded-full flex items-center justify-center">
                 <UserIcon className="w-5 h-5 text-white" />
               </div>
@@ -67,6 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onLogoClick }) =
               </div>
             </div>
 
+            {/* Logout Button */}
             <motion.button
               onClick={onLogout}
               whileHover={{ scale: 1.05 }}

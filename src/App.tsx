@@ -20,7 +20,7 @@ interface User {
 
 type Page = 'login' | 'signup' | 'forgot-password' | 'dashboard' | 'verification';
 
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 1 minute
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const IMPENDING_LOGOUT_WARNING_TIME = 10 * 1000; // 10 seconds before timeout
 
 const AppContent: React.FC = () => {
@@ -32,6 +32,7 @@ const AppContent: React.FC = () => {
   const [cooldown, setCooldown] = useState(0);
   const { showToast } = useToast();
   const [logoClickTime, setLogoClickTime] = useState<number>(0);
+  const [profileClickTime, setProfileClickTime] = useState<number>(0);
 
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const logoutToastTimeoutId = useRef<NodeJS.Timeout | null>(null);
@@ -190,6 +191,10 @@ const AppContent: React.FC = () => {
     setLogoClickTime(Date.now());
   };
 
+  const handleProfileClick = () => {
+    setProfileClickTime(Date.now());
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#050A30] via-[#1B1F50] to-[#3942A7] flex items-center justify-center">
@@ -243,9 +248,9 @@ const AppContent: React.FC = () => {
 
       {currentPage === 'dashboard' && currentUser && (
         <>
-          <Navbar user={currentUser} onLogout={handleLogout} onLogoClick={handleLogoClick}/>
+          <Navbar user={currentUser} onLogout={handleLogout} onLogoClick={handleLogoClick} onProfileClick={handleProfileClick} />
           <main className="flex-1 bg-[#F9FAFB]">
-            <DashboardRouter user={currentUser} logoClickTime={logoClickTime}/>
+            <DashboardRouter user={currentUser} logoClickTime={logoClickTime} profileClickTime={profileClickTime} />
           </main>
           <Footer />
         </>
