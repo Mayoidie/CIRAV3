@@ -26,7 +26,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [activeTab, setActiveTab] = useState<'review' | 'settings' | 'user-management'>('review');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management'>('tickets');
   const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
@@ -36,7 +36,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime })
   
     useEffect(() => {
     if (logoClickTime > 0) {
-      setActiveTab('review');
+      setActiveTab('tickets');
     }
   }, [logoClickTime]);
 
@@ -159,7 +159,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime })
   ];
 
   const tabs = [
-    { id: 'review', label: 'Tickets', icon: ClipboardList },
+    { id: 'tickets', label: 'Tickets', icon: ClipboardList },
     { id: 'user-management', label: 'User Management', icon: Users },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
@@ -221,8 +221,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime })
       </div>
 
       <AnimatePresence mode="wait">
-        {activeTab === 'review' && (
-          <motion.div key="review" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+        {activeTab === 'tickets' && (
+          <motion.div key="tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div className="flex gap-2 overflow-x-auto pb-2">
                 <button onClick={() => setReviewFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingTickets.length})</button>
