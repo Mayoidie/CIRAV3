@@ -31,6 +31,7 @@ const AppContent: React.FC = () => {
   const [isResending, setIsResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const { showToast } = useToast();
+  const [logoClickTime, setLogoClickTime] = useState<number>(0);
 
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const logoutToastTimeoutId = useRef<NodeJS.Timeout | null>(null);
@@ -184,6 +185,10 @@ const AppContent: React.FC = () => {
         });
     }
   };
+  
+    const handleLogoClick = () => {
+    setLogoClickTime(Date.now());
+  };
 
   if (isLoading) {
     return (
@@ -238,9 +243,9 @@ const AppContent: React.FC = () => {
 
       {currentPage === 'dashboard' && currentUser && (
         <>
-          <Navbar user={currentUser} onLogout={handleLogout} />
+          <Navbar user={currentUser} onLogout={handleLogout} onLogoClick={handleLogoClick}/>
           <main className="flex-1 bg-[#F9FAFB]">
-            <DashboardRouter user={currentUser} />
+            <DashboardRouter user={currentUser} logoClickTime={logoClickTime}/>
           </main>
           <Footer />
         </>

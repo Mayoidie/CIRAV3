@@ -8,9 +8,10 @@ import UpdatedNavyBlueLogo from '../../assets/UpdatedNavyBlueLogo.png';
 interface NavbarProps {
   user: User;
   onLogout: () => void;
+  onLogoClick: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onLogoClick }) => {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin':
@@ -42,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={onLogoClick}>
             <div className="rounded-lg flex items-center justify-center overflow-hidden" style={{ width: 'auto', height: '60px' }}>
               <ImageWithFallback
                 src={UpdatedNavyBlueLogo}

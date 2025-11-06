@@ -19,7 +19,12 @@ interface TicketType {
   resolutionNote?: string;
 }
 
-export const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+  logoClickTime: number;
+}
+
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [activeTab, setActiveTab] = useState<'review' | 'settings' | 'user-management'>('review');
   const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
@@ -28,6 +33,13 @@ export const AdminDashboard: React.FC = () => {
   const [resolutionNote, setResolutionNote] = useState<{ [key: string]: string }>({});
 
   const { showToast } = useToast();
+  
+    useEffect(() => {
+    if (logoClickTime > 0) {
+      setActiveTab('review');
+    }
+  }, [logoClickTime]);
+
 
   useEffect(() => {
     const q = query(collection(db, 'tickets'));
