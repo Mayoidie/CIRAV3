@@ -11,7 +11,7 @@ interface TicketType {
   id: string;
   classroom: string;
   issueDescription: string;
-  issueType: string;``
+  issueType: string;
   status: 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected';
   rejectionNote?: string;
   userId: string;
