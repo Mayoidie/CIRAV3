@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://3000-firebase-cirav3git-1761137521505.cluster-d5vecjrg5rhlkrz6nm4jty7avc.cloudworkstations.dev"],
+    "method": ["GET", "PUT", "POST", "DELETE"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type"]
+  }
+]
