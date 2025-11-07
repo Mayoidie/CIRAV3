@@ -273,7 +273,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {/* All Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('all')} 
+                  onClick={() => setReviewFilter('all')}
                   onMouseEnter={() => setHoveredFilter('all')}
                   onMouseLeave={() => setHoveredFilter(null)}
                   style={reviewFilter === 'all'
@@ -289,7 +289,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
 
                 {/* Pending Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('pending')} 
+                  onClick={() => setReviewFilter('pending')}
                   onMouseEnter={() => setHoveredFilter('pending')}
                   onMouseLeave={() => setHoveredFilter(null)}
                   style={reviewFilter === 'pending'
@@ -305,7 +305,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
 
                 {/* Approved Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('approved')} 
+                  onClick={() => setReviewFilter('approved')}
                   onMouseEnter={() => setHoveredFilter('approved')}
                   onMouseLeave={() => setHoveredFilter(null)}
                   style={reviewFilter === 'approved'
@@ -321,7 +321,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
 
                 {/* In Progress Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('in-progress')} 
+                  onClick={() => setReviewFilter('in-progress')}
                   onMouseEnter={() => setHoveredFilter('in-progress')}
                   onMouseLeave={() => setHoveredFilter(null)}
                   style={reviewFilter === 'in-progress'
@@ -337,7 +337,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
 
                 {/* Resolved Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('resolved')} 
+                  onClick={() => setReviewFilter('resolved')}
                   onMouseEnter={() => setHoveredFilter('resolved')}
                   onMouseLeave={() => setHoveredFilter(null)}
                   style={reviewFilter === 'resolved'
@@ -353,7 +353,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
 
                 {/* Rejected Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('rejected')} 
+                  onClick={() => setReviewFilter('rejected')}
                   onMouseEnter={() => setHoveredFilter('rejected')}
                   onMouseLeave={() => setHoveredFilter(null)}
                   style={reviewFilter === 'rejected'
@@ -367,9 +367,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
                   Rejected ({rejectedTickets.length})
                 </button>
               </div>
-              {['resolved', 'rejected'].includes(reviewFilter) && (
-                <button onClick={() => handleDeleteAllTickets(reviewFilter as 'resolved' | 'rejected')} className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-600 transition-colors"><Trash2 className="w-5 h-5" />Delete All {reviewFilter.charAt(0).toUpperCase() + reviewFilter.slice(1)}</button>
-              )}
+              <button onClick={() => handleDeleteAllTickets(reviewFilter as 'resolved' | 'rejected')} className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-600 transition-colors"><Trash2 className="w-5 h-5" />Delete All {reviewFilter.charAt(0).toUpperCase() + reviewFilter.slice(1)}</button>
             </div>
 
             <div className="mb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tickets..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div></div>
