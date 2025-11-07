@@ -7,6 +7,7 @@ import { auth, db } from '../../lib/firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import MainLogoWhite from '../../assets/MainLogoWhite.png';
+import { PasswordChecklist } from './PasswordChecklist';
 
 interface SignupPageProps {
   onNavigateToLogin: () => void;
@@ -25,35 +26,16 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { showToast } = useToast();
-  const [passwordMessage, setPasswordMessage] = useState('');
-  const [passwordMessageColor, setPasswordMessageColor] = useState('');
 
-  useEffect(() => {
-    const password = formData.password;
-    if (!password) {
-      setPasswordMessage('');
-      return;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (isSubmitted) {
+      setIsSubmitted(false);
     }
-
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[@$!%*?&]/.test(password)) strength++;
-
-    if (strength <= 2) {
-      setPasswordMessage('Weak');
-      setPasswordMessageColor('text-red-500');
-    } else if (strength <= 4) {
-      setPasswordMessage('Medium');
-      setPasswordMessageColor('text-yellow-500');
-    } else {
-      setPasswordMessage('Strong');
-      setPasswordMessageColor('text-green-500');
-    }
-  }, [formData.password]);
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {};
@@ -111,11 +93,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
       isValid = false;
     }
 
-    if (!isValid) {
-      setErrors(newErrors);
-      if (!newErrors.password) {
-        showToast('Please fill in all required fields correctly', 'error');
-      }
+    setErrors(newErrors);
+    if (!isValid && !newErrors.password) {
+      showToast('Please fill in all required fields correctly', 'error');
     }
 
     return isValid;
@@ -123,7 +103,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
+    setIsSubmitted(true);
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -186,8 +166,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
                       type="text"
+                      name="firstName"
                       value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      onChange={handleInputChange}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.firstName ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="Juan"
                     />
@@ -199,8 +180,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
                       type="text"
+                      name="lastName"
                       value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      onChange={handleInputChange}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.lastName ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="Dela Cruz"
                     />
@@ -213,8 +195,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                   <input
                     type="email"
+                    name="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={handleInputChange}
                     className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                     placeholder="student@plv.edu.ph"
                   />
@@ -224,8 +207,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                 <div>
                   <label className="block text-[#1E1E1E] mb-2">Role</label>
                   <select
+                    name="role"
                     value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    onChange={handleInputChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all"
                   >
                     <option value="student">Student</option>
@@ -238,8 +222,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
                       type="text"
+                      name="studentId"
                       value={formData.studentId}
-                      onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                      onChange={handleInputChange}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.studentId ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="23-3302"
                     />
@@ -250,14 +235,14 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                 <div>
                   <div className="flex justify-between items-center">
                     <label className="block text-[#1E1E1E] mb-2">Password</label>
-                    {passwordMessage && <p className={`text-sm ${passwordMessageColor}`}>{passwordMessage}</p>}
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
                       type="password"
+                      name="password"
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={handleInputChange}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.password ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="••••••••"
                     />
@@ -269,14 +254,16 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
                       type="password"
+                      name="confirmPassword"
                       value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      onChange={handleInputChange}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.confirmPassword ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="••••••••"
                     />
                   </div>
                 </div>
               </div>
+              <PasswordChecklist password={formData.password} isSubmitted={isSubmitted} />
               <motion.button
                 type="submit"
                 disabled={isLoading}
