@@ -72,7 +72,6 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     const newErrors: Record<string, boolean> = {};
 
     if (!formData.classroom) newErrors.classroom = true;
-    // Unit ID is optional if issueType is 'other'
     if (formData.issueType !== 'other' && !formData.unitId) newErrors.unitId = true; 
     if (!formData.issueType) newErrors.issueType = true;
     if (!formData.issueDescription) newErrors.issueDescription = true;
@@ -197,7 +196,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
         <div>
           <label htmlFor="unitId" className="block text-[#1E1E1E] mb-2">
-            Unit ID {isUnitIdRequired && <span className="text-red-500">*</span>}
+            Unit ID {isUnitIdRequired && <span className="text-[#FF4D4F]">*</span>}
           </label>
           <select
             id="unitId"
@@ -205,9 +204,9 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
             value={formData.unitId}
             onChange={handleChange}
             className={`w-full p-3 border rounded-lg ${
-              errors.unitId ? 'border-red-500' : 'border-[#D1D5DB]'
+              errors.unitId ? 'border-[#FF4D4F]' : 'border-[#D1D5DB]'
             } focus:ring focus:ring-blue-200 focus:border-blue-500`}
-            disabled={!formData.classroom && isUnitIdRequired} // Disable until classroom is selected, only if required
+            disabled={!formData.classroom && isUnitIdRequired} 
           >
             <option value="">{isUnitIdRequired ? 'Select Unit ID' : 'Select Unit ID (Optional)'}</option>
             {unitIdOptions.map((unitId) => (
@@ -216,7 +215,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
               </option>
             ))}
           </select>
-          {errors.unitId && isUnitIdRequired && <p className="text-red-500 text-sm mt-1">Unit ID is required.</p>}
+          {errors.unitId && isUnitIdRequired && <p className="text-[#FF4D4F] text-sm mt-1">Unit ID is required.</p>}
         </div>
       </div>
 
