@@ -179,7 +179,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="flex border-b border-gray-200 overflow-x-auto">
           {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all whitespace-nowrap cursor-pointer ${activeTab === tab.id ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] hover:bg-gray-50'}`}>
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all whitespace-nowrap cursor-pointer ${activeTab === tab.id ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] hover:bg-[#5E69B1] hover:text-white'}`}>
               <tab.icon className="w-5 h-5" /><span>{tab.label}</span>
             </button>
           ))}

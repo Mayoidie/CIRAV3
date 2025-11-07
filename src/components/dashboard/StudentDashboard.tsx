@@ -125,7 +125,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
             initial={{ opacity: 0, y: 20 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: index * 0.1 }} 
-            onClick={() => setStatusFilter(stat.status)}
+            onClick={() => { setActiveTab('my-tickets'); setStatusFilter(stat.status); }}
             className="bg-white rounded-xl shadow-md p-6 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
             <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center mb-3`}><stat.icon className="w-6 h-6 text-white" /></div>
             <p className="text-[#7A7A7A] mb-1">{stat.label}</p>
@@ -137,7 +137,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="flex border-b border-gray-200">
           {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all cursor-pointer ${activeTab === tab.id ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] hover:bg-gray-50'}`}>
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all cursor-pointer ${activeTab === tab.id ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] hover:bg-[#5E69B1] hover:text-white'}`}>
               <tab.icon className="w-5 h-5" /><span>{tab.label}</span>
             </button>
           ))}
