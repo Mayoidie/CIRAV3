@@ -153,6 +153,10 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const resolvedMyTickets = myTickets.filter(t => t.status === 'resolved');
   const rejectedMyTickets = myTickets.filter(t => t.status === 'rejected');
 
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+  const [hoveredFilter, setHoveredFilter] = useState<string | null>(null); // State for filter buttons
+  const [hoveredStat, setHoveredStat] = useState<string | null>(null); // State for stat cards
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
@@ -168,10 +172,17 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: index * 0.1 }} 
             onClick={() => { setActiveTab('review'); setReviewFilter(stat.status); }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+            onMouseEnter={() => setHoveredStat(stat.status)}
+            onMouseLeave={() => setHoveredStat(null)}
+            style={
+              hoveredStat === stat.status
+                ? { backgroundColor: '#cfcfcf', color: 'white', border: '1px solid #cfcfcf' }
+                : { backgroundColor: 'white', color: '#1E1E1E', border: '1px solid #D1D5DB' }
+            }
+            className="rounded-xl shadow-md p-6 cursor-pointer transition-colors">
             <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center mb-3`}><stat.icon className="w-6 h-6 text-white" /></div>
-            <p className="text-[#7A7A7A] mb-1">{stat.label}</p>
-            <p className="text-[#1E1E1E]">{stat.count}</p>
+            <p className="text-[#7A7A7A] mb-1" style={hoveredStat === stat.status ? { color: 'white' } : {}}>{stat.label}</p>
+            <p className="text-[#1E1E1E]" style={hoveredStat === stat.status ? { color: 'white' } : {}}>{stat.count}</p>
           </motion.div>
         ))}
       </div>
@@ -179,7 +190,19 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="flex border-b border-gray-200 overflow-x-auto">
           {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all whitespace-nowrap cursor-pointer ${activeTab === tab.id ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] hover:bg-[#5E69B1] hover:text-white'}`}>
+            <button 
+              key={tab.id} 
+              onClick={() => setActiveTab(tab.id as any)} 
+              onMouseEnter={() => setHoveredTab(tab.id)}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={activeTab === tab.id 
+                ? { backgroundColor: '#3942A7', color: 'white' } 
+                : (hoveredTab === tab.id 
+                    ? { backgroundColor: '#cfcfcf', color: 'white' } 
+                    : { backgroundColor: 'white', color: '#7A7A7A' }
+                  )
+              }
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all whitespace-nowrap cursor-pointer`}>
               <tab.icon className="w-5 h-5" /><span>{tab.label}</span>
             </button>
           ))}
@@ -190,12 +213,77 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
         {activeTab === 'my-tickets' && (
           <motion.div key="my-tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                <button onClick={() => setMyTicketsFilter('all')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${myTicketsFilter === 'all' ? 'bg-[#1B1F50] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>All ({myTickets.length})</button>
+                <button 
+                  onClick={() => setMyTicketsFilter('all')} 
+                  onMouseEnter={() => setHoveredFilter('all')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={myTicketsFilter === 'all'
+                    ? { backgroundColor: '#1B1F50', color: 'white' }
+                    : (hoveredFilter === 'all'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  All ({myTickets.length})
+                </button>
                 {/* Removed Pending tab as Class Rep tickets are auto-approved */}
-                <button onClick={() => setMyTicketsFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${myTicketsFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedMyTickets.length})</button>
-                <button onClick={() => setMyTicketsFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${myTicketsFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressMyTickets.length})</button>
-                <button onClick={() => setMyTicketsFilter('resolved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${myTicketsFilter === 'resolved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Resolved ({resolvedMyTickets.length})</button>
-                <button onClick={() => setMyTicketsFilter('rejected')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${myTicketsFilter === 'rejected' ? 'bg-[#FF4D4F] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Rejected ({rejectedMyTickets.length})</button>
+                <button 
+                  onClick={() => setMyTicketsFilter('approved')} 
+                  onMouseEnter={() => setHoveredFilter('approved')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={myTicketsFilter === 'approved'
+                    ? { backgroundColor: '#1DB954', color: 'white' }
+                    : (hoveredFilter === 'approved'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  Approved ({approvedMyTickets.length})
+                </button>
+                <button 
+                  onClick={() => setMyTicketsFilter('in-progress')} 
+                  onMouseEnter={() => setHoveredFilter('in-progress')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={myTicketsFilter === 'in-progress'
+                    ? { backgroundColor: '#3942A7', color: 'white' }
+                    : (hoveredFilter === 'in-progress'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  In Progress ({inProgressMyTickets.length})
+                </button>
+                <button 
+                  onClick={() => setMyTicketsFilter('resolved')} 
+                  onMouseEnter={() => setHoveredFilter('resolved')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={myTicketsFilter === 'resolved'
+                    ? { backgroundColor: '#1DB954', color: 'white' }
+                    : (hoveredFilter === 'resolved'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  Resolved ({resolvedMyTickets.length})
+                </button>
+                <button 
+                  onClick={() => setMyTicketsFilter('rejected')} 
+                  onMouseEnter={() => setHoveredFilter('rejected')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={myTicketsFilter === 'rejected'
+                    ? { backgroundColor: '#FF4D4F', color: 'white' }
+                    : (hoveredFilter === 'rejected'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  Rejected ({rejectedMyTickets.length})
+                </button>
             </div>
 
             <div className="mb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search my tickets..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div></div>
@@ -205,7 +293,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                 {Object.values(groupedMyTickets).flat().map(ticket => <TicketCard key={ticket.id} ticket={ticket} showActions={false} />)}
               </div>
             ) : filteredMyTickets.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : `You haven\'t submitted any tickets in this category yet`}</p></div>
+              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : `You haven't submitted any tickets in this category yet`}</p></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredMyTickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} showActions={false} />)}
@@ -217,12 +305,90 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
         {activeTab === 'review' && (
           <motion.div key="review" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                <button onClick={() => setReviewFilter('all')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${reviewFilter === 'all' ? 'bg-[#1B1F50] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>All ({reviewTickets.length})</button>
-                <button onClick={() => setReviewFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${reviewFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingReviewTickets.length})</button>
-                <button onClick={() => setReviewFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${reviewFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedReviewTickets.length})</button>
-                <button onClick={() => setReviewFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${reviewFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressReviewTickets.length})</button>
-                <button onClick={() => setReviewFilter('resolved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${reviewFilter === 'resolved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Resolved ({resolvedReviewTickets.length})</button>
-                <button onClick={() => setReviewFilter('rejected')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${reviewFilter === 'rejected' ? 'bg-[#FF4D4F] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Rejected ({rejectedReviewTickets.length})</button>
+                <button 
+                  onClick={() => setReviewFilter('all')} 
+                  onMouseEnter={() => setHoveredFilter('all')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={reviewFilter === 'all'
+                    ? { backgroundColor: '#1B1F50', color: 'white' }
+                    : (hoveredFilter === 'all'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  All ({reviewTickets.length})
+                </button>
+                <button 
+                  onClick={() => setReviewFilter('pending')} 
+                  onMouseEnter={() => setHoveredFilter('pending')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={reviewFilter === 'pending'
+                    ? { backgroundColor: '#FFC107', color: '#1E1E1E' }
+                    : (hoveredFilter === 'pending'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  Pending ({pendingReviewTickets.length})
+                </button>
+                <button 
+                  onClick={() => setReviewFilter('approved')} 
+                  onMouseEnter={() => setHoveredFilter('approved')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={reviewFilter === 'approved'
+                    ? { backgroundColor: '#1DB954', color: 'white' }
+                    : (hoveredFilter === 'approved'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  Approved ({approvedReviewTickets.length})
+                </button>
+                <button 
+                  onClick={() => setReviewFilter('in-progress')} 
+                  onMouseEnter={() => setHoveredFilter('in-progress')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={reviewFilter === 'in-progress'
+                    ? { backgroundColor: '#3942A7', color: 'white' }
+                    : (hoveredFilter === 'in-progress'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  In Progress ({inProgressReviewTickets.length})
+                </button>
+                <button 
+                  onClick={() => setReviewFilter('resolved')} 
+                  onMouseEnter={() => setHoveredFilter('resolved')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={reviewFilter === 'resolved'
+                    ? { backgroundColor: '#1DB954', color: 'white' }
+                    : (hoveredFilter === 'resolved'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  Resolved ({resolvedReviewTickets.length})
+                </button>
+                <button 
+                  onClick={() => setReviewFilter('rejected')} 
+                  onMouseEnter={() => setHoveredFilter('rejected')}
+                  onMouseLeave={() => setHoveredFilter(null)}
+                  style={reviewFilter === 'rejected'
+                    ? { backgroundColor: '#FF4D4F', color: 'white' }
+                    : (hoveredFilter === 'rejected'
+                        ? { backgroundColor: '#cfcfcf', color: 'white' }
+                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
+                      )
+                  }
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  Rejected ({rejectedReviewTickets.length})
+                </button>
             </div>
 
             <div className="mb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tickets to review..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div></div>
