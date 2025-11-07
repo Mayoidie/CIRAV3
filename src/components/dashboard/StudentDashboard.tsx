@@ -137,7 +137,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="flex border-b border-gray-200">
           {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all ${activeTab === tab.id ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] hover:bg-gray-50'}`}>
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all cursor-pointer ${activeTab === tab.id ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] hover:bg-gray-50'}`}>
               <tab.icon className="w-5 h-5" /><span>{tab.label}</span>
             </button>
           ))}
@@ -148,12 +148,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
         {activeTab === 'my-tickets' && (
           <motion.div key="my-tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-              <button onClick={() => setStatusFilter('all')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${statusFilter === 'all' ? 'bg-[#1B1F50] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>All ({tickets.length})</button>
-              <button onClick={() => setStatusFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${statusFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingTickets.length})</button>
-              <button onClick={() => setStatusFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${statusFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedTickets.length})</button>
-              <button onClick={() => setStatusFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${statusFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressTickets.length})</button>
-              <button onClick={() => setStatusFilter('resolved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${statusFilter === 'resolved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Resolved ({resolvedTickets.length})</button>
-              <button onClick={() => setStatusFilter('rejected')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${statusFilter === 'rejected' ? 'bg-[#FF4D4F] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Rejected ({rejectedTickets.length})</button>
+              <button onClick={() => setStatusFilter('all')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${statusFilter === 'all' ? 'bg-[#1B1F50] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>All ({tickets.length})</button>
+              <button onClick={() => setStatusFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${statusFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingTickets.length})</button>
+              <button onClick={() => setStatusFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${statusFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedTickets.length})</button>
+              <button onClick={() => setStatusFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${statusFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressTickets.length})</button>
+              <button onClick={() => setStatusFilter('resolved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${statusFilter === 'resolved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Resolved ({resolvedTickets.length})</button>
+              <button onClick={() => setStatusFilter('rejected')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer ${statusFilter === 'rejected' ? 'bg-[#FF4D4F] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Rejected ({rejectedTickets.length})</button>
             </div>
 
             <div className="mb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tickets..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div></div>

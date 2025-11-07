@@ -99,7 +99,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             onClick={() => onDelete(ticket.id)}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="text-[#FF4D4F] hover:bg-red-50 p-2 rounded-lg transition-all"
+            className="text-[#FF4D4F] hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
           >
             <Trash2 className="w-5 h-5" />
           </motion.button>
@@ -154,7 +154,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 onClick={() => onApprove(ticket.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all cursor-pointer"
               >
                 <CheckCircle className="w-4 h-4" />
                 <span>Approve</span>
@@ -163,7 +163,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 onClick={() => onReject(ticket.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#FF4D4F] text-white rounded-lg hover:bg-[#FF4D4F]/90 transition-all"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#FF4D4F] text-white rounded-lg hover:bg-[#FF4D4F]/90 transition-all cursor-pointer"
               >
                 <XCircle className="w-4 h-4" />
                 <span>Reject</span>
@@ -176,7 +176,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
               onClick={() => onStartProgress(ticket.id)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#3942A7] text-white rounded-lg hover:bg-[#3942A7]/90 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#3942A7] text-white rounded-lg hover:bg-[#3942A7]/90 transition-all cursor-pointer"
             >
               <PlayCircle className="w-4 h-4" />
               <span>Start Working</span>
@@ -188,7 +188,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
               onClick={() => onResolve(ticket.id)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all cursor-pointer"
             >
               <CheckCircle className="w-4 h-4" />
               <span>Mark as Resolved</span>
