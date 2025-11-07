@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Upload, Send } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
 import { CLASSROOMS, ISSUE_TYPES } from '../../lib/issueTypes';
@@ -22,19 +22,46 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageProcessing, setIsImageProcessing] = useState(false); // New state for image processing
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
+  const [hoveredUpload, setHoveredUpload] = useState(false); // New state for upload area hover
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processImage = async (imageFile: File): Promise<File> => {
+    // Placeholder for image processing logic (e.g., resizing, compression)
+    console.log('Processing image:', imageFile.name);
+    // Simulate an async operation
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return imageFile; // Return the original file for now
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setIsImageProcessing(true); // Indicate that processing is happening
+      try {
+        const processedFile = await processImage(file);
+        setImageFile(processedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(processedFile);
+      } catch (error) {
+        console.error('Error processing image:', error);
+        showToast('Failed to process image.', 'error');
+        setImageFile(null);
+        setImagePreview('');
+      } finally {
+        setIsImageProcessing(false);
+      }
     }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({ ...prevData, [name]: value }));
+    setErrors((prevErrors) => ({ ...prevErrors, [name]: false }));
   };
 
   const validateForm = () => {
@@ -71,10 +98,20 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     try {
       let imageUrl = '';
       if (imageFile) {
+        console.log('Attempting to upload image...');
         const storage = getStorage();
         const storageRef = ref(storage, `tickets/${user.uid}/${Date.now()}_${imageFile.name}`);
-        const snapshot = await uploadBytes(storageRef, imageFile);
-        imageUrl = await getDownloadURL(snapshot.ref);
+        try {
+          const snapshot = await uploadBytes(storageRef, imageFile);
+          console.log('Image uploaded successfully:', snapshot);
+          imageUrl = await getDownloadURL(snapshot.ref);
+          console.log('Image download URL:', imageUrl);
+        } catch (imageUploadError) {
+          console.error('Error during image upload or getting download URL:', imageUploadError);
+          showToast('Failed to upload image. Please try again.', 'error');
+          setIsLoading(false);
+          return; // Stop submission if image upload fails
+        }
       }
 
       const currentUserData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -110,6 +147,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
       setImagePreview('');
       onSuccess();
     } catch (error) {
+      console.error('Error submitting ticket (Firestore part):', error);
       showToast('Failed to submit ticket', 'error');
     } finally {
       setIsLoading(false);
@@ -129,7 +167,8 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
           </label>
           <select
             value={formData.classroom}
-            onChange={(e) => setFormData({ ...formData, classroom: e.target.value })}
+            onChange={handleChange}
+            name="classroom"
             className={`w-full px-4 py-3 border ${errors.classroom ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
           >
             <option value="">Select Classroom</option>
@@ -144,7 +183,8 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
           <input
             type="text"
             value={formData.unitId}
-            onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+            onChange={handleChange}
+            name="unitId"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all"
             placeholder="e.g., PC-001"
           />
@@ -159,7 +199,9 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
           value={formData.issueType}
           onChange={(e) => {
             setFormData({ ...formData, issueType: e.target.value, issueSubtype: '' });
+            setErrors((prevErrors) => ({ ...prevErrors, issueType: false }));
           }}
+          name="issueType"
           className={`w-full px-4 py-3 border ${errors.issueType ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
         >
           <option value="">Select Issue Type</option>
@@ -177,7 +219,8 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
           <label className="block text-[#1E1E1E] mb-2">Issue Subtype</label>
           <select
             value={formData.issueSubtype}
-            onChange={(e) => setFormData({ ...formData, issueSubtype: e.target.value })}
+            onChange={handleChange}
+            name="issueSubtype"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all"
           >
             <option value="">Select Subtype (Optional)</option>
@@ -194,7 +237,8 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         </label>
         <textarea
           value={formData.issueDescription}
-          onChange={(e) => setFormData({ ...formData, issueDescription: e.target.value })}
+          onChange={handleChange}
+          name="issueDescription"
           rows={4}
           className={`w-full px-4 py-3 border ${errors.issueDescription ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
           placeholder="Please describe the issue in detail..."
@@ -203,24 +247,41 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
       <div>
         <label className="block text-[#1E1E1E] mb-2">Upload Image (Optional)</label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#3942A7] transition-all cursor-pointer">
+        <div
+          onMouseEnter={() => setHoveredUpload(true)}
+          onMouseLeave={() => setHoveredUpload(false)}
+          style={hoveredUpload
+            ? { borderColor: '#cfcfcf', backgroundColor: '#cfcfcf', color: 'white' }
+            : { borderColor: '#D1D5DB', backgroundColor: 'white', color: '#7A7A7A' }}
+          className="border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer"
+        >
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
             className="hidden"
             id="image-upload"
+            disabled={isImageProcessing || isLoading} // Disable during processing or loading
           />
           <label htmlFor="image-upload" className="cursor-pointer">
-            {imagePreview ? (
+            {isImageProcessing ? (
+              <div className="flex items-center justify-center space-x-2 text-[#7A7A7A]">
+                <svg className="animate-spin h-5 w-5 text-[#7A7A7A]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Processing Image...</span>
+              </div>
+            ) : imagePreview ? (
               <div className="space-y-2">
                 <img src={imagePreview} alt="Preview" className="max-h-48 mx-auto rounded-lg" />
-                <p className="text-[#7A7A7A]">Click to change image</p>
+                <p className="text-sm text-[#7A7A7A]">Click to change image</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                <Upload className="w-12 h-12 mx-auto text-[#7A7A7A]" />
-                <p className="text-[#7A7A7A]">Click to upload an image</p>
+              <div className="flex flex-col items-center space-x-2">
+                <Upload size={48} strokeWidth={1.5} />
+                <p className="text-lg">Drag & drop an image here, or click to browse</p>
+                <p className="text-sm text-[#7A7A7A]">Max file size: 5MB</p>
               </div>
             )}
           </label>
@@ -229,7 +290,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
       <motion.button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || isImageProcessing}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className="w-full bg-gradient-to-r from-[#3942A7] to-[#1B1F50] text-white py-3 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
