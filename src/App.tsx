@@ -79,7 +79,7 @@ const AppContent: React.FC = () => {
               resetInactivityTimer(); // Start timer when user logs in and is verified
             } else {
               setCurrentUser(null);
-              setCurrentPage('login');
+              if (currentPage !== 'signup') setCurrentPage('login');
               if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
               if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
             }
@@ -95,7 +95,7 @@ const AppContent: React.FC = () => {
         }
       } else {
         setCurrentUser(null);
-        setCurrentPage('login');
+        if (currentPage !== 'signup') setCurrentPage('login');
         setIsLoading(false);
         if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
         if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
@@ -107,7 +107,7 @@ const AppContent: React.FC = () => {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
       if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
     };
-  }, [resetInactivityTimer]);
+  }, [resetInactivityTimer, currentPage]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout | undefined;

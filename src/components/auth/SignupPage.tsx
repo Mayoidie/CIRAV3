@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { User, Mail, Lock, IdCard, UserPlus } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
@@ -26,43 +26,99 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordMessageColor, setPasswordMessageColor] = useState('');
+
+  useEffect(() => {
+    const password = formData.password;
+    if (!password) {
+      setPasswordMessage('');
+      return;
+    }
+
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/\d/.test(password)) strength++;
+    if (/[@$!%*?&]/.test(password)) strength++;
+
+    if (strength <= 2) {
+      setPasswordMessage('Weak');
+      setPasswordMessageColor('text-red-500');
+    } else if (strength <= 4) {
+      setPasswordMessage('Medium');
+      setPasswordMessageColor('text-yellow-500');
+    } else {
+      setPasswordMessage('Strong');
+      setPasswordMessageColor('text-green-500');
+    }
+  }, [formData.password]);
 
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {};
-    if (!formData.firstName) newErrors.firstName = true;
-    if (!formData.lastName) newErrors.lastName = true;
-    if (!formData.email) newErrors.email = true;
-    if (!formData.studentId) newErrors.studentId = true;
-    if (!formData.password) newErrors.password = true;
-    if (!formData.confirmPassword) newErrors.confirmPassword = true;
+    let isValid = true;
+
+    if (!formData.firstName) {
+      newErrors.firstName = true;
+      isValid = false;
+    }
+    if (!formData.lastName) {
+      newErrors.lastName = true;
+      isValid = false;
+    }
+    if (!formData.email) {
+      newErrors.email = true;
+      isValid = false;
+    }
+    if (!formData.studentId) {
+      newErrors.studentId = true;
+      isValid = false;
+    }
+    if (!formData.password) {
+      newErrors.password = true;
+      isValid = false;
+    }
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = true;
+      isValid = false;
+    }
 
     if (formData.email && !formData.email.endsWith('@plv.edu.ph')) {
       newErrors.email = true;
       showToast('Only @plv.edu.ph email addresses are allowed', 'error');
-      return false;
+      isValid = false;
     }
 
     const studentIdRegex = /^\d{2}-\d{4}$/;
     if (formData.studentId && !studentIdRegex.test(formData.studentId)) {
       newErrors.studentId = true;
       showToast('Student ID must be in format: XX-XXXX (e.g., 23-3302)', 'error');
-      return false;
+      isValid = false;
+    }
+
+    // Password policy validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (formData.password && !passwordRegex.test(formData.password)) {
+      newErrors.password = true;
+      isValid = false;
     }
 
     if (formData.password !== formData.confirmPassword) {
       newErrors.password = true;
       newErrors.confirmPassword = true;
       showToast('Passwords do not match', 'error');
-      return false;
+      isValid = false;
     }
 
-    if (Object.keys(newErrors).length > 0) {
+    if (!isValid) {
       setErrors(newErrors);
-      showToast('Please fill in all required fields correctly', 'error');
-      return false;
+      if (!newErrors.password) {
+        showToast('Please fill in all required fields correctly', 'error');
+      }
     }
 
-    return true;
+    return isValid;
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -115,18 +171,8 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
       >
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           <div className="bg-gradient-to-r from-[#3942A7] to-[#1B1F50] p-8 text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-              className="w-20 h-20 bg-white mx-auto mb-4 flex items-center justify-center"
-              style={{ width: '100px', height: '100px' }}
-            >
-              <ImageWithFallback
-                src={MainLogoWhite}
-                alt="CIRA"
-                className="w-full h-full object-cover"
-              />
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }} className="w-20 h-20 mx-auto mb-4 flex items-center justify-center" style={{ width: '120px', height: '120px' }}>
+              <ImageWithFallback src={MainLogoWhite} alt="CIRA" className="w-full h-full object-cover" />
             </motion.div>
             <p className="text-white/80">Create your account</p>
           </div>
@@ -202,7 +248,10 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-[#1E1E1E] mb-2">Password</label>
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[#1E1E1E] mb-2">Password</label>
+                    {passwordMessage && <p className={`text-sm ${passwordMessageColor}`}>{passwordMessage}</p>}
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input

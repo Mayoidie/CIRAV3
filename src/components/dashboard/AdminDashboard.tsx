@@ -158,11 +158,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const rejectedTickets = tickets.filter(t => t.status === 'rejected');
 
   const stats = [
-    { label: 'Pending', count: pendingTickets.length, icon: Clock, color: 'bg-[#FFC107]' },
-    { label: 'Approved', count: approvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]' },
-    { label: 'In Progress', count: inProgressTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]' },
-    { label: 'Resolved', count: resolvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]' },
-    { label: 'Rejected', count: rejectedTickets.length, icon: XCircle, color: 'bg-[#FF4D4F]' },
+    { label: 'Pending', count: pendingTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending' as const },
+    { label: 'Approved', count: approvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'approved' as const },
+    { label: 'In Progress', count: inProgressTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]', status: 'in-progress' as const },
+    { label: 'Resolved', count: resolvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'resolved' as const },
+    { label: 'Rejected', count: rejectedTickets.length, icon: XCircle, color: 'bg-[#FF4D4F]', status: 'rejected' as const },
   ];
 
   const tabs = [
@@ -209,7 +209,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         {stats.map((stat, index) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+          <motion.div 
+            key={stat.label} 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: index * 0.1 }} 
+            onClick={() => setReviewFilter(stat.status)}
+            className="bg-white rounded-xl shadow-md p-6 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
             <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center mb-3`}><stat.icon className="w-6 h-6 text-white" /></div>
             <p className="text-[#7A7A7A] mb-1">{stat.label}</p>
             <p className="text-[#1E1E1E]">{stat.count}</p>
