@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Send } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
-import { CLASSROOMS, ISSUE_TYPES } from '../../lib/issueTypes';
+import { CLASSROOM_DATA, ISSUE_TYPES } from '../../lib/issueTypes'; // Updated import
 import { db, auth } from '../../lib/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -21,24 +21,22 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isImageProcessing, setIsImageProcessing] = useState(false); // New state for image processing
+  const [isLoading, setIsLoading] = useState(false); 
+  const [isImageProcessing, setIsImageProcessing] = useState(false); 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
-  const [hoveredUpload, setHoveredUpload] = useState(false); // New state for upload area hover
+  const [hoveredUpload, setHoveredUpload] = useState(false); 
 
   const processImage = async (imageFile: File): Promise<File> => {
-    // Placeholder for image processing logic (e.g., resizing, compression)
     console.log('Processing image:', imageFile.name);
-    // Simulate an async operation
     await new Promise(resolve => setTimeout(resolve, 500));
-    return imageFile; // Return the original file for now
+    return imageFile; 
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setIsImageProcessing(true); // Indicate that processing is happening
+      setIsImageProcessing(true); 
       try {
         const processedFile = await processImage(file);
         setImageFile(processedFile);
@@ -60,7 +58,13 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
+    setFormData((prevData) => {
+      const newData = { ...prevData, [name]: value };
+      if (name === 'classroom') {
+        newData.unitId = ''; 
+      }
+      return newData;
+    });
     setErrors((prevErrors) => ({ ...prevErrors, [name]: false }));
   };
 
@@ -68,6 +72,8 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     const newErrors: Record<string, boolean> = {};
 
     if (!formData.classroom) newErrors.classroom = true;
+    // Unit ID is optional if issueType is 'other'
+    if (formData.issueType !== 'other' && !formData.unitId) newErrors.unitId = true; 
     if (!formData.issueType) newErrors.issueType = true;
     if (!formData.issueDescription) newErrors.issueDescription = true;
 
@@ -110,7 +116,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
           console.error('Error during image upload or getting download URL:', imageUploadError);
           showToast('Failed to upload image. Please try again.', 'error');
           setIsLoading(false);
-          return; // Stop submission if image upload fails
+          return; 
         }
       }
 
@@ -155,6 +161,15 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
   };
 
   const selectedIssueType = formData.issueType ? ISSUE_TYPES[formData.issueType as keyof typeof ISSUE_TYPES] : null;
+  const selectedClassroomData = formData.classroom ? CLASSROOM_DATA[formData.classroom as keyof typeof CLASSROOM_DATA] : null;
+  const unitIdOptions = selectedClassroomData
+    ? Array.from({ length: selectedClassroomData.unitRange[1] - selectedClassroomData.unitRange[0] + 1 }, (_, i) => {
+        const unitNumber = selectedClassroomData.unitRange[0] + i;
+        return `${selectedClassroomData.unitPrefix}${unitNumber < 10 ? `0${unitNumber}` : unitNumber}`;
+      })
+    : [];
+
+  const isUnitIdRequired = formData.issueType !== 'other';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl shadow-md p-6">
@@ -172,22 +187,36 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
             className={`w-full px-4 py-3 border ${errors.classroom ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
           >
             <option value="">Select Classroom</option>
-            {CLASSROOMS.map(classroom => (
-              <option key={classroom} value={classroom}>{classroom}</option>
+            {Object.entries(CLASSROOM_DATA).map(([key, value]) => (
+              <option key={key} value={key}>
+                {value.label}
+              </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-[#1E1E1E] mb-2">Unit ID (Optional)</label>
-          <input
-            type="text"
+          <label htmlFor="unitId" className="block text-[#1E1E1E] mb-2">
+            Unit ID {isUnitIdRequired && <span className="text-red-500">*</span>}
+          </label>
+          <select
+            id="unitId"
+            name="unitId"
             value={formData.unitId}
             onChange={handleChange}
-            name="unitId"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all"
-            placeholder="e.g., PC-001"
-          />
+            className={`w-full p-3 border rounded-lg ${
+              errors.unitId ? 'border-red-500' : 'border-[#D1D5DB]'
+            } focus:ring focus:ring-blue-200 focus:border-blue-500`}
+            disabled={!formData.classroom && isUnitIdRequired} // Disable until classroom is selected, only if required
+          >
+            <option value="">{isUnitIdRequired ? 'Select Unit ID' : 'Select Unit ID (Optional)'}</option>
+            {unitIdOptions.map((unitId) => (
+              <option key={unitId} value={unitId}>
+                {unitId}
+              </option>
+            ))}
+          </select>
+          {errors.unitId && isUnitIdRequired && <p className="text-red-500 text-sm mt-1">Unit ID is required.</p>}
         </div>
       </div>
 
@@ -261,7 +290,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
             onChange={handleImageChange}
             className="hidden"
             id="image-upload"
-            disabled={isImageProcessing || isLoading} // Disable during processing or loading
+            disabled={isImageProcessing || isLoading} 
           />
           <label htmlFor="image-upload" className="cursor-pointer">
             {isImageProcessing ? (
