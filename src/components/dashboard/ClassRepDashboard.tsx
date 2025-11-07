@@ -27,7 +27,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'review' | 'report' | 'settings'>('my-tickets');
   const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all'); // Removed 'pending'
-  const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
   const { showToast } = useToast();
@@ -35,6 +35,8 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   useEffect(() => {
     if (logoClickTime > 0) {
       setActiveTab('my-tickets');
+      setMyTicketsFilter('all');
+      setReviewFilter('all');
     }
   }, [logoClickTime]);
 
@@ -100,12 +102,30 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
     );
 
   const filteredReviewTickets = reviewTickets
-    .filter(t => t.status === reviewFilter)
+    .filter(t => reviewFilter === 'all' || t.status === reviewFilter)
     .filter(ticket => 
       ticket.issueDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.classroom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.issueType.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+  const groupedMyTickets = myTickets.reduce((acc, ticket) => {
+    const { status } = ticket;
+    if (!acc[status]) {
+      acc[status] = [];
+    }
+    acc[status].push(ticket);
+    return acc;
+  }, {} as Record<TicketType['status'], TicketType[]>);
+
+  const groupedReviewTickets = reviewTickets.reduce((acc, ticket) => {
+    const { status } = ticket;
+    if (!acc[status]) {
+      acc[status] = [];
+    }
+    acc[status].push(ticket);
+    return acc;
+  }, {} as Record<TicketType['status'], TicketType[]>);
 
   const pendingReviewTickets = reviewTickets.filter(t => t.status === 'pending');
   const approvedReviewTickets = reviewTickets.filter(t => t.status === 'approved');
@@ -180,8 +200,12 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
 
             <div className="mb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search my tickets..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div></div>
 
-            {filteredMyTickets.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : "You haven't submitted any tickets yet"}</p></div>
+            {myTicketsFilter === 'all' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.values(groupedMyTickets).flat().map(ticket => <TicketCard key={ticket.id} ticket={ticket} showActions={false} />)}
+              </div>
+            ) : filteredMyTickets.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : `You haven\'t submitted any tickets in this category yet`}</p></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredMyTickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} showActions={false} />)}
@@ -193,16 +217,33 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
         {activeTab === 'review' && (
           <motion.div key="review" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-              <button onClick={() => setReviewFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingReviewTickets.length})</button>
-              <button onClick={() => setReviewFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedReviewTickets.length})</button>
-              <button onClick={() => setReviewFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressReviewTickets.length})</button>
-              <button onClick={() => setReviewFilter('resolved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'resolved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Resolved ({resolvedReviewTickets.length})</button>
-              <button onClick={() => setReviewFilter('rejected')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'rejected' ? 'bg-[#FF4D4F] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Rejected ({rejectedReviewTickets.length})</button>
+                <button onClick={() => setReviewFilter('all')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'all' ? 'bg-[#1B1F50] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>All ({reviewTickets.length})</button>
+                <button onClick={() => setReviewFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingReviewTickets.length})</button>
+                <button onClick={() => setReviewFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedReviewTickets.length})</button>
+                <button onClick={() => setReviewFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressReviewTickets.length})</button>
+                <button onClick={() => setReviewFilter('resolved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'resolved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Resolved ({resolvedReviewTickets.length})</button>
+                <button onClick={() => setReviewFilter('rejected')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'rejected' ? 'bg-[#FF4D4F] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Rejected ({rejectedReviewTickets.length})</button>
             </div>
 
             <div className="mb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tickets to review..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div></div>
 
-            {filteredReviewTickets.length === 0 ? (
+            {reviewFilter === 'all' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.values(groupedReviewTickets).flat().map(ticket => (
+                  <div key={ticket.id} className="space-y-4">
+                    <TicketCard 
+                      ticket={ticket} 
+                      onApprove={() => handleApprove(ticket.id)} 
+                      onReject={() => handleReject(ticket.id)} 
+                      showActions={ticket.status === 'pending'}
+                    />
+                    {ticket.status === 'pending' && (
+                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={rejectionNote[ticket.id] || ''} onChange={(e) => setRejectionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add rejection note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : filteredReviewTickets.length === 0 ? (
               <div className="bg-white rounded-xl shadow-md p-12 text-center"><ClipboardList className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets to review</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : `There are no ${reviewFilter} tickets to review`}</p></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

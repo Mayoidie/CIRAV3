@@ -28,10 +28,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'report' | 'settings'>('my-tickets');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   useEffect(() => {
     if (logoClickTime > 0) {
       setActiveTab('my-tickets');
+      setStatusFilter('all');
     }
   }, [logoClickTime]);
 
@@ -40,7 +41,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
       setActiveTab('settings');
     }
   }, [profileClickTime]);
-
 
   const fetchTickets = useCallback(() => {
     if (auth.currentUser) {
@@ -71,7 +71,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const handleTicketSubmission = () => {
     setActiveTab('my-tickets');
     setStatusFilter('pending');
-    fetchTickets(); // Force a re-fetch of tickets
+    fetchTickets();
   };
 
   const pendingTickets = tickets.filter(t => t.status === 'pending');
@@ -87,6 +87,15 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
       ticket.classroom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.issueType.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+  const groupedTickets = tickets.reduce((acc, ticket) => {
+    const { status } = ticket;
+    if (!acc[status]) {
+      acc[status] = [];
+    }
+    acc[status].push(ticket);
+    return acc;
+  }, {} as Record<TicketType['status'], TicketType[]>);
 
   const stats = [
     { label: 'Pending', count: pendingTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending' as const },
@@ -151,8 +160,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
 
             {isLoading ? (
               <div className="bg-white rounded-xl shadow-md p-12 text-center"><Loader className="w-16 h-16 mx-auto text-[#3942A7] mb-4 animate-spin" /><h3 className="text-[#1E1E1E] mb-2">Loading Tickets...</h3><p className="text-[#7A7A7A]">Please wait a moment.</p></div>
+            ) : statusFilter === 'all' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.values(groupedTickets).flat().map(ticket => <TicketCard key={ticket.id} ticket={ticket} showActions={false} />)}
+              </div>
             ) : filteredTickets.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : "You haven't submitted any tickets yet"}</p></div>
+              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : `You haven\'t submitted any tickets in this category yet`}</p></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} showActions={false} />)}

@@ -28,7 +28,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management'>('tickets');
-  const [reviewFilter, setReviewFilter] = useState<'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('pending');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
   const [resolutionNote, setResolutionNote] = useState<{ [key: string]: string }>({});
@@ -38,6 +38,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
     useEffect(() => {
     if (logoClickTime > 0) {
       setActiveTab('tickets');
+      setReviewFilter('all');
     }
   }, [logoClickTime]);
 
@@ -144,12 +145,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   };
 
   const filteredTickets = tickets
-    .filter(t => t.status === reviewFilter)
+    .filter(t => reviewFilter === 'all' || t.status === reviewFilter)
     .filter(ticket => 
       ticket.issueDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.classroom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.issueType.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+  const groupedTickets = filteredTickets.reduce((acc, ticket) => {
+    const { status } = ticket;
+    if (!acc[status]) {
+      acc[status] = [];
+    }
+    acc[status].push(ticket);
+    return acc;
+  }, {} as Record<TicketType['status'], TicketType[]>);
 
   const pendingTickets = tickets.filter(t => t.status === 'pending');
   const approvedTickets = tickets.filter(t => t.status === 'approved');
@@ -177,23 +187,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
         return {
           onApprove: () => handleStatusUpdate(ticket.id, 'approved'),
           onReject: () => handleTicketReject(ticket.id),
-          showActions: reviewFilter === 'pending',
+          showActions: true,
         };
       case 'approved':
         return {
           onStartProgress: () => handleStatusUpdate(ticket.id, 'in-progress'),
-          showActions: reviewFilter === 'approved',
+          showActions: true,
         };
       case 'in-progress':
         return {
           onResolve: () => handleResolveWithNote(ticket.id),
-          showActions: reviewFilter === 'in-progress',
+          showActions: true,
         };
       case 'resolved':
       case 'rejected':
         return {
           onDelete: () => handleDeleteTicket(ticket.id),
-          showActions: reviewFilter === 'resolved' || reviewFilter === 'rejected',
+          showActions: true,
         };
       default:
         return { showActions: false };
@@ -238,6 +248,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
           <motion.div key="tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div className="flex gap-2 overflow-x-auto pb-2">
+                <button onClick={() => setReviewFilter('all')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'all' ? 'bg-[#1B1F50] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>All ({tickets.length})</button>
                 <button onClick={() => setReviewFilter('pending')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'pending' ? 'bg-[#FFC107] text-[#1E1E1E]' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Pending ({pendingTickets.length})</button>
                 <button onClick={() => setReviewFilter('approved')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'approved' ? 'bg-[#1DB954] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>Approved ({approvedTickets.length})</button>
                 <button onClick={() => setReviewFilter('in-progress')} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap ${reviewFilter === 'in-progress' ? 'bg-[#3942A7] text-white' : 'bg-white text-[#7A7A7A] border border-gray-300 hover:bg-gray-50'}`}>In Progress ({inProgressTickets.length})</button>
@@ -253,6 +264,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
 
             {filteredTickets.length === 0 ? (
               <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : `There are no ${reviewFilter} tickets`}</p></div>
+            ) : reviewFilter === 'all' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.values(groupedTickets).flat().map(ticket => (
+                  <div key={ticket.id} className="space-y-4">
+                    <TicketCard 
+                      ticket={ticket} 
+                      {...getTicketCardActions(ticket)}
+                    />
+                    {ticket.status === 'pending' && (
+                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={rejectionNote[ticket.id] || ''} onChange={(e) => setRejectionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add rejection note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
+                    )}
+                    {ticket.status === 'in-progress' && (
+                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={resolutionNote[ticket.id] || ''} onChange={(e) => setResolutionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add resolution note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTickets.map(ticket => (
@@ -261,10 +289,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
                       ticket={ticket} 
                       {...getTicketCardActions(ticket)}
                     />
-                    {reviewFilter === 'pending' && ticket.status === 'pending' && (
+                    {ticket.status === 'pending' && (
                       <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={rejectionNote[ticket.id] || ''} onChange={(e) => setRejectionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add rejection note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
                     )}
-                    {reviewFilter === 'in-progress' && ticket.status === 'in-progress' && (
+                    {ticket.status === 'in-progress' && (
                       <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={resolutionNote[ticket.id] || ''} onChange={(e) => setResolutionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add resolution note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
                     )}
                   </div>
