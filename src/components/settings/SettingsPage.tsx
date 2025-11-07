@@ -54,17 +54,22 @@ export const SettingsPage: React.FC = () => {
     if (!passwords.new) newErrors.new = true;
     if (!passwords.confirm) newErrors.confirm = true;
 
-    if (passwords.new !== passwords.confirm) {
+    // Password policy validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(passwords.new)) {
       newErrors.new = true;
-      newErrors.confirm = true;
-      showToast('New passwords do not match', 'error');
+      showToast(
+        'Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.',
+        'error'
+      );
       setErrors(newErrors);
       return;
     }
 
-    if (passwords.new.length < 6) {
+    if (passwords.new !== passwords.confirm) {
       newErrors.new = true;
-      showToast('Password must be at least 6 characters', 'error');
+      newErrors.confirm = true;
+      showToast('New passwords do not match', 'error');
       setErrors(newErrors);
       return;
     }
