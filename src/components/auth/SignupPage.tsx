@@ -25,16 +25,94 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const { showToast } = useToast();
   const emailInputRef = useRef<HTMLInputElement>(null);
+
+  const validateField = (name: string, value: string, currentFormData = formData): string => {
+    switch (name) {
+      case 'firstName':
+        return value.trim() ? '' : 'First Name is required';
+      case 'lastName':
+        return value.trim() ? '' : 'Last Name is required';
+      case 'email':
+        if (!value || value === '@plv.edu.ph') return 'Email is required';
+        if (!value.endsWith('@plv.edu.ph')) return 'Email must be a valid @plv.edu.ph address';
+        return '';
+      case 'studentId':
+        const studentIdRegex = /^\d{2}-\d{4}$/;
+        if (!value.trim()) return 'Student ID is required';
+        if (!studentIdRegex.test(value)) return 'Student ID must be in format: XX-XXXX';
+        return '';
+      case 'password':
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!value) return 'Password is required';
+        if (!passwordRegex.test(value)) return 'Password does not meet the requirements';
+        return '';
+      case 'confirmPassword':
+        if (!value) return 'Confirm Password is required';
+        if (currentFormData.password !== value) return 'Passwords do not match';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'password') {
+      setIsPasswordFocused(false);
+    }
+    const error = validateField(name, value);
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[name] = error;
+      } else {
+        delete newErrors[name];
+      }
+      return newErrors;
+    });
+
+    if (name === 'password' && formData.confirmPassword) {
+      const confirmPasswordError = validateField('confirmPassword', formData.confirmPassword);
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (confirmPasswordError) {
+          newErrors.confirmPassword = confirmPasswordError;
+        } else {
+          delete newErrors.confirmPassword;
+        }
+        return newErrors;
+      });
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (isSubmitted) {
-      setIsSubmitted(false);
+    if (errors[name]) {
+      const error = validateField(name, value, { ...formData, [name]: value });
+      if (!error) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
+    }
+
+    if (name === 'password') {
+      const confirmError = validateField('confirmPassword', formData.confirmPassword, { ...formData, password: value });
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (!confirmError) {
+          delete newErrors.confirmPassword;
+        }
+        return newErrors;
+      });
     }
   };
 
@@ -61,6 +139,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
   }, [formData.email]);
 
   const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    handleBlur(e);
     const value = e.target.value;
     if (value === '@plv.edu.ph') {
       setFormData(prev => ({ ...prev, email: '' }));
@@ -70,60 +149,21 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, boolean> = {};
-    let isValid = true;
+    const newErrors: Record<string, string> = {};
+    const fields: Array<keyof typeof formData> = ['firstName', 'lastName', 'email', 'studentId', 'password', 'confirmPassword'];
 
-    if (!formData.firstName) {
-      newErrors.firstName = true;
-      isValid = false;
-    }
-    if (!formData.lastName) {
-      newErrors.lastName = true;
-      isValid = false;
-    }
-    if (!formData.email || formData.email === '@plv.edu.ph') {
-      newErrors.email = true;
-      isValid = false;
-    }
-    if (!formData.studentId) {
-      newErrors.studentId = true;
-      isValid = false;
-    }
-    if (!formData.password) {
-      newErrors.password = true;
-      isValid = false;
-    }
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = true;
-      isValid = false;
-    }
-
-    const studentIdRegex = /^\d{2}-\d{4}$/;
-    if (formData.studentId && !studentIdRegex.test(formData.studentId)) {
-      newErrors.studentId = true;
-      showToast('Student ID must be in format: XX-XXXX (e.g., 23-3302)', 'error');
-      isValid = false;
-    }
-
-    // Password policy validation
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (formData.password && !passwordRegex.test(formData.password)) {
-      newErrors.password = true;
-      isValid = false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.password = true;
-      newErrors.confirmPassword = true;
-      showToast('Passwords do not match', 'error');
-      isValid = false;
-    }
+    fields.forEach(field => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
 
     setErrors(newErrors);
-    if (!isValid && !newErrors.password) {
-      showToast('Please fill in all required fields correctly', 'error');
+    const isValid = Object.keys(newErrors).length === 0;
+    if (!isValid) {
+      showToast('Please check the form for errors.', 'error');
     }
-
     return isValid;
   };
 
@@ -157,6 +197,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
+        setErrors(prev => ({ ...prev, email: 'This email is already in use.' }));
         showToast('This email is already in use.', 'error');
       } else {
         console.error("Detailed Signup Error:", error);
@@ -187,7 +228,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
             <form onSubmit={handleSignup} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-[#1E1E1E] mb-2">First Name</label>
+                  <label className="block text-[#1E1E1E] mb-2">
+                    First Name {errors.firstName && <span className="text-[#FF4D4F]">*</span>}
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
@@ -195,13 +238,17 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
+                      onBlur={handleBlur}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.firstName ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="Juan"
                     />
                   </div>
+                  {errors.firstName && <p className="text-[#FF4D4F] text-sm mt-1">{errors.firstName}</p>}
                 </div>
                 <div>
-                  <label className="block text-[#1E1E1E] mb-2">Last Name</label>
+                  <label className="block text-[#1E1E1E] mb-2">
+                    Last Name {errors.lastName && <span className="text-[#FF4D4F]">*</span>}
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
@@ -209,14 +256,18 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
+                      onBlur={handleBlur}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.lastName ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="Dela Cruz"
                     />
                   </div>
+                  {errors.lastName && <p className="text-[#FF4D4F] text-sm mt-1">{errors.lastName}</p>}
                 </div>
               </div>
               <div>
-                <label className="block text-[#1E1E1E] mb-2">Email (@plv.edu.ph only)</label>
+                <label className="block text-[#1E1E1E] mb-2">
+                  Email (@plv.edu.ph only) {errors.email && <span className="text-[#FF4D4F]">*</span>}
+                </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                   <input
@@ -232,6 +283,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     placeholder="student@plv.edu.ph"
                   />
                 </div>
+                {errors.email && <p className="text-[#FF4D4F] text-sm mt-1">{errors.email}</p>}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
@@ -247,7 +299,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[#1E1E1E] mb-2">Student ID (XX-XXXX)</label>
+                  <label className="block text-[#1E1E1E] mb-2">
+                    Student ID (XX-XXXX) {errors.studentId && <span className="text-[#FF4D4F]">*</span>}
+                  </label>
                   <div className="relative">
                     <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
@@ -255,16 +309,20 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                       name="studentId"
                       value={formData.studentId}
                       onChange={handleInputChange}
+                      onBlur={handleBlur}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.studentId ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="23-3302"
                     />
                   </div>
+                  {errors.studentId && <p className="text-[#FF4D4F] text-sm mt-1">{errors.studentId}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <div className="flex justify-between items-center">
-                    <label className="block text-[#1E1E1E] mb-2">Password</label>
+                    <label className="block text-[#1E1E1E] mb-2">
+                      Password {errors.password && <span className="text-[#FF4D4F]">*</span>}
+                    </label>
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
@@ -273,13 +331,18 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={handleBlur}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.password ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="••••••••"
                     />
                   </div>
+                  {errors.password && <p className="text-[#FF4D4F] text-sm mt-1">{errors.password}</p>}
                 </div>
                 <div>
-                  <label className="block text-[#1E1E1E] mb-2">Confirm Password</label>
+                  <label className="block text-[#1E1E1E] mb-2">
+                    Confirm Password {errors.confirmPassword && <span className="text-[#FF4D4F]">*</span>}
+                  </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                     <input
@@ -287,13 +350,15 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
+                      onBlur={handleBlur}
                       className={`w-full pl-10 pr-4 py-3 border ${errors.confirmPassword ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                       placeholder="••••••••"
                     />
                   </div>
+                  {errors.confirmPassword && <p className="text-[#FF4D4F] text-sm mt-1">{errors.confirmPassword}</p>}
                 </div>
               </div>
-              <PasswordChecklist password={formData.password} isSubmitted={isSubmitted} />
+              {(isPasswordFocused || formData.password) && <PasswordChecklist password={formData.password} isSubmitted={isSubmitted} />}
               <motion.button
                 type="submit"
                 disabled={isLoading}

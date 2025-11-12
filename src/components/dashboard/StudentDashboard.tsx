@@ -94,7 +94,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
             initial={{ opacity: 0, y: 20 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: index * 0.1 }} 
-            onClick={() => setFilter(stat.status)}
+            onClick={() => { setActiveTab('tickets'); setFilter(stat.status); }}
             onMouseEnter={() => setHoveredStat(stat.status)}
             onMouseLeave={() => setHoveredStat(null)}
             style={{
