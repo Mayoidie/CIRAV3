@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Search, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle, Users } from 'lucide-react';
+import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Search, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle, Users, Check, X, Pencil } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
-import { TicketCard } from '../tickets/TicketCard';
 import { useToast } from '../ui/toast-container';
 import { SettingsPage } from '../settings/SettingsPage';
 import { UserManagement } from './UserManagement';
+import { Button } from '../ui/button';
 
 interface TicketType {
   id: string;
@@ -17,13 +17,14 @@ interface TicketType {
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
+  unitId?: string;
+  approvedAt?: { toDate: () => Date };
 }
 
 interface AdminDashboardProps {
   logoClickTime: number;
   profileClickTime: number;
 }
-
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
@@ -32,6 +33,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
   const [resolutionNote, setResolutionNote] = useState<{ [key: string]: string }>({});
+  const [showRejectionNote, setShowRejectionNote] = useState<{ [key: string]: boolean }>({});
+  const [showResolutionNote, setShowResolutionNote] = useState<{ [key: string]: boolean }>({});
 
   const { showToast } = useToast();
   
@@ -47,7 +50,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
       setActiveTab('settings');
     }
   }, [profileClickTime]);
-
 
   useEffect(() => {
     const q = query(collection(db, 'tickets'));
@@ -94,7 +96,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const handleStatusUpdate = async (ticketId: string, status: TicketType['status'], note?: string) => {
     try {
       const ticketRef = doc(db, 'tickets', ticketId);
-      const updateData: { status: TicketType['status']; resolutionNote?: string } = { status };
+      const updateData: { status: TicketType['status']; resolutionNote?: string; approvedAt?: any } = { status };
+
+      if (status === 'approved') {
+        updateData.approvedAt = new Date();
+      }
 
       if (status === 'resolved' && note) {
         updateData.resolutionNote = note;
@@ -108,6 +114,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
           delete updated[ticketId];
           return updated;
         });
+        setShowResolutionNote(prev => ({ ...prev, [ticketId]: false }));
       }
     } catch (error) {
       showToast('Failed to update ticket status', 'error');
@@ -130,6 +137,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
         delete updated[ticketId];
         return updated;
       });
+      setShowRejectionNote(prev => ({ ...prev, [ticketId]: false }));
     } catch (error) {
       showToast('Failed to reject ticket', 'error');
     }
@@ -152,15 +160,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
       ticket.issueType.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  const groupedTickets = filteredTickets.reduce((acc, ticket) => {
-    const { status } = ticket;
-    if (!acc[status]) {
-      acc[status] = [];
-    }
-    acc[status].push(ticket);
-    return acc;
-  }, {} as Record<TicketType['status'], TicketType[]>);
-
   const pendingTickets = tickets.filter(t => t.status === 'pending');
   const approvedTickets = tickets.filter(t => t.status === 'approved');
   const inProgressTickets = tickets.filter(t => t.status === 'in-progress');
@@ -181,38 +180,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
-  const getTicketCardActions = (ticket: TicketType) => {
-    switch (ticket.status) {
-      case 'pending':
-        return {
-          onApprove: () => handleStatusUpdate(ticket.id, 'approved'),
-          onReject: () => handleTicketReject(ticket.id),
-          showActions: true,
-        };
-      case 'approved':
-        return {
-          onStartProgress: () => handleStatusUpdate(ticket.id, 'in-progress'),
-          showActions: true,
-        };
-      case 'in-progress':
-        return {
-          onResolve: () => handleResolveWithNote(ticket.id),
-          showActions: true,
-        };
-      case 'resolved':
-      case 'rejected':
-        return {
-          onDelete: () => handleDeleteTicket(ticket.id),
-          showActions: true,
-        };
-      default:
-        return { showActions: false };
-    }
-  };
-
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
-  const [hoveredFilter, setHoveredFilter] = useState<string | null>(null); // New state for filter buttons
-  const [hoveredStat, setHoveredStat] = useState<string | null>(null); // New state for stat cards
+  const [hoveredFilter, setHoveredFilter] = useState<string | null>(null);
+  const [hoveredStat, setHoveredStat] = useState<string | null>(null);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -231,15 +201,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
             onClick={() => { setActiveTab('tickets'); setReviewFilter(stat.status); }}
             onMouseEnter={() => setHoveredStat(stat.status)}
             onMouseLeave={() => setHoveredStat(null)}
-            style={
-              hoveredStat === stat.status
-                ? { backgroundColor: '#cfcfcf', color: 'white', border: '1px solid #cfcfcf' }
-                : { backgroundColor: 'white', color: '#1E1E1E', border: '1px solid #D1D5DB' }
-            }
+            style={{
+              backgroundColor: hoveredStat === stat.status ? '#3942A7' : 'white',
+              color: hoveredStat === stat.status ? 'white' : '#1E1E1E',
+              border: '1px solid #D1D5DB'
+            }}
             className="rounded-xl shadow-md p-6 cursor-pointer transition-colors">
             <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center mb-3`}><stat.icon className="w-6 h-6 text-white" /></div>
-            <p className="text-[#7A7A7A] mb-1" style={hoveredStat === stat.status ? { color: 'white' } : {}}>{stat.label}</p>
-            <p className="text-[#1E1E1E]" style={hoveredStat === stat.status ? { color: 'white' } : {}}>{stat.count}</p>
+            <p className="text-[#7A7A7A] mb-1" style={{color: hoveredStat === stat.status ? 'white' : '#7A7A7A'}}>{stat.label}</p>
+            <p className="text-2xl font-bold" style={{color: hoveredStat === stat.status ? 'white' : '#1E1E1E'}}>{stat.count}</p>
           </motion.div>
         ))}
       </div>
@@ -252,13 +222,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
               onClick={() => setActiveTab(tab.id as any)} 
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
-              style={activeTab === tab.id 
-                ? { backgroundColor: '#3942A7', color: 'white' } 
-                : (hoveredTab === tab.id 
-                    ? { backgroundColor: '#cfcfcf', color: 'white' } 
-                    : { backgroundColor: 'white', color: '#7A7A7A' }
-                  )
-              }
+              style={{
+                backgroundColor: activeTab === tab.id ? '#3942A7' : (hoveredTab === tab.id ? '#4d57c8' : 'white'),
+                color: activeTab === tab.id || hoveredTab === tab.id ? 'white' : '#7A7A7A'
+              }}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 transition-all whitespace-nowrap cursor-pointer`}>
               <tab.icon className="w-5 h-5" /><span>{tab.label}</span>
             </button>
@@ -271,142 +238,137 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
           <motion.div key="tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div className="flex gap-2 overflow-x-auto pb-2">
-                {/* All Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('all')}
-                  onMouseEnter={() => setHoveredFilter('all')}
-                  onMouseLeave={() => setHoveredFilter(null)}
-                  style={reviewFilter === 'all'
-                    ? { backgroundColor: '#1B1F50', color: 'white' }
-                    : (hoveredFilter === 'all'
-                        ? { backgroundColor: '#cfcfcf', color: 'white' }
-                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
-                      )
-                  }
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  onClick={() => setReviewFilter('all')} 
+                  style={{backgroundColor: reviewFilter === 'all' ? '#1B1F50' : 'white', color: reviewFilter === 'all' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   All ({tickets.length})
                 </button>
-
-                {/* Pending Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('pending')}
-                  onMouseEnter={() => setHoveredFilter('pending')}
-                  onMouseLeave={() => setHoveredFilter(null)}
-                  style={reviewFilter === 'pending'
-                    ? { backgroundColor: '#FFC107', color: '#1E1E1E' }
-                    : (hoveredFilter === 'pending'
-                        ? { backgroundColor: '#cfcfcf', color: 'white' }
-                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
-                      )
-                  }
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  onClick={() => setReviewFilter('pending')} 
+                  style={{backgroundColor: reviewFilter === 'pending' ? '#FFC107' : 'white', color: reviewFilter === 'pending' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Pending ({pendingTickets.length})
                 </button>
-
-                {/* Approved Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('approved')}
-                  onMouseEnter={() => setHoveredFilter('approved')}
-                  onMouseLeave={() => setHoveredFilter(null)}
-                  style={reviewFilter === 'approved'
-                    ? { backgroundColor: '#1DB954', color: 'white' }
-                    : (hoveredFilter === 'approved'
-                        ? { backgroundColor: '#cfcfcf', color: 'white' }
-                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
-                      )
-                  }
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  onClick={() => setReviewFilter('approved')} 
+                  style={{backgroundColor: reviewFilter === 'approved' ? '#1DB954' : 'white', color: reviewFilter === 'approved' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Approved ({approvedTickets.length})
                 </button>
-
-                {/* In Progress Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('in-progress')}
-                  onMouseEnter={() => setHoveredFilter('in-progress')}
-                  onMouseLeave={() => setHoveredFilter(null)}
-                  style={reviewFilter === 'in-progress'
-                    ? { backgroundColor: '#3942A7', color: 'white' }
-                    : (hoveredFilter === 'in-progress'
-                        ? { backgroundColor: '#cfcfcf', color: 'white' }
-                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
-                      )
-                  }
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  onClick={() => setReviewFilter('in-progress')} 
+                  style={{backgroundColor: reviewFilter === 'in-progress' ? '#3942A7' : 'white', color: reviewFilter === 'in-progress' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   In Progress ({inProgressTickets.length})
                 </button>
-
-                {/* Resolved Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('resolved')}
-                  onMouseEnter={() => setHoveredFilter('resolved')}
-                  onMouseLeave={() => setHoveredFilter(null)}
-                  style={reviewFilter === 'resolved'
-                    ? { backgroundColor: '#1DB954', color: 'white' }
-                    : (hoveredFilter === 'resolved'
-                        ? { backgroundColor: '#cfcfcf', color: 'white' }
-                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
-                      )
-                  }
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  onClick={() => setReviewFilter('resolved')} 
+                  style={{backgroundColor: reviewFilter === 'resolved' ? '#1DB954' : 'white', color: reviewFilter === 'resolved' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Resolved ({resolvedTickets.length})
                 </button>
-
-                {/* Rejected Filter Button */}
                 <button 
-                  onClick={() => setReviewFilter('rejected')}
-                  onMouseEnter={() => setHoveredFilter('rejected')}
-                  onMouseLeave={() => setHoveredFilter(null)}
-                  style={reviewFilter === 'rejected'
-                    ? { backgroundColor: '#FF4D4F', color: 'white' }
-                    : (hoveredFilter === 'rejected'
-                        ? { backgroundColor: '#cfcfcf', color: 'white' }
-                        : { backgroundColor: 'white', color: '#7A7A7A', border: '1px solid #D1D5DB' }
-                      )
-                  }
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer`}>
+                  onClick={() => setReviewFilter('rejected')} 
+                  style={{backgroundColor: reviewFilter === 'rejected' ? '#FF4D4F' : 'white', color: reviewFilter === 'rejected' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Rejected ({rejectedTickets.length})
                 </button>
               </div>
-              <button onClick={() => handleDeleteAllTickets(reviewFilter as 'resolved' | 'rejected')} className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-600 transition-colors"><Trash2 className="w-5 h-5" />Delete All {reviewFilter.charAt(0).toUpperCase() + reviewFilter.slice(1)}</button>
+              {(reviewFilter === 'resolved' || reviewFilter === 'rejected') && 
+                <button onClick={() => handleDeleteAllTickets(reviewFilter as 'resolved' | 'rejected')} className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-600 transition-colors"><Trash2 className="w-5 h-5" />Delete All {reviewFilter.charAt(0).toUpperCase() + reviewFilter.slice(1)}</button>
+              }
             </div>
 
-            <div className="mb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tickets..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div></div>
+            <div className="mb-6 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tickets..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" />
+            </div>
 
             {filteredTickets.length === 0 ? (
               <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{searchQuery ? 'Try adjusting your search query' : `There are no ${reviewFilter} tickets`}</p></div>
-            ) : reviewFilter === 'all' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.values(groupedTickets).flat().map(ticket => (
-                  <div key={ticket.id} className="space-y-4">
-                    <TicketCard 
-                      ticket={ticket} 
-                      {...getTicketCardActions(ticket)}
-                    />
-                    {ticket.status === 'pending' && (
-                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={rejectionNote[ticket.id] || ''} onChange={(e) => setRejectionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add rejection note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
-                    )}
-                    {ticket.status === 'in-progress' && (
-                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={resolutionNote[ticket.id] || ''} onChange={(e) => setResolutionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add resolution note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
-                    )}
-                  </div>
-                ))}
-              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredTickets.map(ticket => (
-                   <div key={ticket.id} className="space-y-4">
-                    <TicketCard 
-                      ticket={ticket} 
-                      {...getTicketCardActions(ticket)}
-                    />
-                    {ticket.status === 'pending' && (
-                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={rejectionNote[ticket.id] || ''} onChange={(e) => setRejectionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add rejection note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
-                    )}
-                    {ticket.status === 'in-progress' && (
-                      <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200"><textarea value={resolutionNote[ticket.id] || ''} onChange={(e) => setResolutionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Add resolution note..." rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" /></div>
-                    )}
-                  </div>
-                ))}
+              <div className="bg-white rounded-xl shadow-md overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-white uppercase" style={{backgroundColor: '#3942A7'}}>
+                    <tr>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Ticket ID</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Issue Type</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Unit ID</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Classroom</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Approved</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Actions</div></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTickets.map((ticket, index) => (
+                      <tr key={ticket.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap"><div className="flex items-center justify-center">{ticket.id.slice(0, 8)}...</div></td>
+                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.issueType}</div></td>
+                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.unitId || 'N/A'}</div></td>
+                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.classroom}</div></td>
+                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
+                        <td className="px-6 py-4">
+                            <div className="flex items-center justify-center">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white ${
+                                    ticket.status === 'pending' ? 'bg-[#FFC107]' :
+                                    ticket.status === 'approved' ? 'bg-[#1DB954]' :
+                                    ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
+                                    ticket.status === 'resolved' ? 'bg-[#1DB954]' :
+                                    'bg-[#FF4D4F]'
+                                }`}>
+                                    {ticket.status}
+                                </span>
+                            </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-center gap-2">
+                            {ticket.status === 'pending' && (
+                              <>
+                                {!showRejectionNote[ticket.id] ? (
+                                  <div className="flex gap-2">
+                                    <Button onClick={() => handleStatusUpdate(ticket.id, 'approved')} variant="success"><Check className="w-4 h-4 mr-2"/>Approve</Button>
+                                    <Button onClick={() => setShowRejectionNote(prev => ({ ...prev, [ticket.id]: true }))} variant="destructive"><X className="w-4 h-4 mr-2"/>Reject</Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col gap-2">
+                                    <textarea value={rejectionNote[ticket.id] || ''} onChange={(e) => setRejectionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Rejection Note..." className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#3942A7]" />
+                                    <div className="flex gap-2">
+                                      <Button onClick={() => handleTicketReject(ticket.id)} variant="destructive" className="flex-1">Confirm</Button>
+                                      <Button onClick={() => setShowRejectionNote(prev => ({ ...prev, [ticket.id]: false }))} variant="ghost" className="flex-1">Cancel</Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {ticket.status === 'approved' && <Button onClick={() => handleStatusUpdate(ticket.id, 'in-progress')} variant="default"><PlayCircle className="w-4 h-4 mr-2"/>Start Progress</Button>}
+                            {ticket.status === 'in-progress' && (
+                              <>
+                                {!showResolutionNote[ticket.id] ? (
+                                  <Button onClick={() => setShowResolutionNote(prev => ({ ...prev, [ticket.id]: true }))} variant="secondary"><Pencil className="w-4 h-4 mr-2"/>Resolve</Button>
+                                ) : (
+                                  <div className="flex flex-col gap-2">
+                                    <textarea value={resolutionNote[ticket.id] || ''} onChange={(e) => setResolutionNote(prev => ({ ...prev, [ticket.id]: e.target.value }))} placeholder="Resolution Note..." className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#3942A7]" />
+                                    <div className="flex gap-2">
+                                      <Button onClick={() => handleResolveWithNote(ticket.id)} variant="secondary" className="flex-1">Confirm</Button>
+                                      <Button onClick={() => setShowResolutionNote(prev => ({ ...prev, [ticket.id]: false }))} variant="ghost" className="flex-1">Cancel</Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {(ticket.status === 'resolved' || ticket.status === 'rejected') && 
+                              <Button onClick={() => handleDeleteTicket(ticket.id)} variant="destructive">
+                                <Trash2 className="w-4 h-4 mr-2"/>Delete
+                              </Button>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </motion.div>

@@ -9,7 +9,7 @@ import { ToastProvider, useToast } from './components/ui/toast-container';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut, sendEmailVerification, User as FirebaseUser } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { VerificationPage } from './components/auth/VerificationPage';
 
 interface User {
