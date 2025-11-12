@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Lock, LogIn, Send, AlertTriangle } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
@@ -21,6 +21,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
   const [errors, setErrors] = useState({ email: false, password: false });
   const [showUnverifiedEmailMessage, setShowUnverifiedEmailMessage] = useState(false);
   const { showToast } = useToast();
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  const handleEmailFocus = () => {
+    if (!email) {
+      setEmail('@plv.edu.ph');
+    }
+  };
+
+  const handleEmailClick = () => {
+    if (emailInputRef.current && email === '@plv.edu.ph') {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  };
+
+  useEffect(() => {
+    if (email === '@plv.edu.ph' && emailInputRef.current) {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  }, [email]);
+
+  const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '@plv.edu.ph') {
+      setEmail('');
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,14 +144,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                     <label className="block text-[#1E1E1E] mb-2">Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`} placeholder="your.email@plv.edu.ph" />
+                      <input
+                        ref={emailInputRef}
+                        type="text"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        onFocus={handleEmailFocus}
+                        onClick={handleEmailClick}
+                        onBlur={handleEmailBlur}
+                        className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+                        placeholder="your.email@plv.edu.ph"
+                      />
                     </div>
                   </div>
                   <div>
                     <label className="block text-[#1E1E1E] mb-2">Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
-                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={`w-full pl-10 pr-4 py-3 border ${errors.password ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`} placeholder="••••••••" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-3 border ${errors.password ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+                        placeholder="••••••••"
+                      />
                     </div>
                   </div>
                   <button type="button" onClick={onNavigateToForgotPassword} className="text-[#3942A7] hover:underline transition-all">

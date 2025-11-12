@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { User, Mail, Lock, IdCard, UserPlus } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
@@ -28,12 +28,44 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { showToast } = useToast();
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (isSubmitted) {
       setIsSubmitted(false);
+    }
+  };
+
+  const handleEmailFocus = () => {
+    if (!formData.email) {
+      setFormData(prev => ({ ...prev, email: '@plv.edu.ph' }));
+    }
+  };
+
+  const handleEmailClick = () => {
+    if (emailInputRef.current && formData.email === '@plv.edu.ph') {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  };
+
+  useEffect(() => {
+    if (formData.email === '@plv.edu.ph' && emailInputRef.current) {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  }, [formData.email]);
+
+  const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '@plv.edu.ph') {
+      setFormData(prev => ({ ...prev, email: '' }));
+    } else if (value && !value.endsWith('@plv.edu.ph')) {
+      setFormData(prev => ({ ...prev, email: value + '@plv.edu.ph' }));
     }
   };
 
@@ -49,7 +81,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
       newErrors.lastName = true;
       isValid = false;
     }
-    if (!formData.email) {
+    if (!formData.email || formData.email === '@plv.edu.ph') {
       newErrors.email = true;
       isValid = false;
     }
@@ -63,12 +95,6 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
     }
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = true;
-      isValid = false;
-    }
-
-    if (formData.email && !formData.email.endsWith('@plv.edu.ph')) {
-      newErrors.email = true;
-      showToast('Only @plv.edu.ph email addresses are allowed', 'error');
       isValid = false;
     }
 
@@ -194,10 +220,14 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                   <input
-                    type="email"
+                    ref={emailInputRef}
+                    type="text"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
+                    onFocus={handleEmailFocus}
+                    onClick={handleEmailClick}
+                    onBlur={handleEmailBlur}
                     className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                     placeholder="student@plv.edu.ph"
                   />
