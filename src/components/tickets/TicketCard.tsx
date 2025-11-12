@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Calendar, MapPin, AlertCircle, Trash2, CheckCircle, XCircle, PlayCircle } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface Ticket {
   id: string;
@@ -95,14 +96,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           )}
         </div>
         {onDelete && (
-          <motion.button
-            onClick={() => onDelete(ticket.id)}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="text-[#FF4D4F] hover:bg-red-50 p-2 rounded-lg transition-all cursor-pointer"
-          >
-            <Trash2 className="w-5 h-5" />
-          </motion.button>
+            <Button onClick={() => onDelete(ticket.id)} variant="ghost" size="icon" className="text-destructive">
+              <Trash2 className="w-5 h-5" />
+            </Button>
         )}
       </div>
 
@@ -150,49 +146,29 @@ export const TicketCard: React.FC<TicketCardProps> = ({
         <div className="flex gap-2 pt-4 border-t">
           {ticket.status === 'pending' && onApprove && onReject && (
             <>
-              <motion.button
-                onClick={() => onApprove(ticket.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all cursor-pointer"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span>Approve</span>
-              </motion.button>
-              <motion.button
-                onClick={() => onReject(ticket.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#FF4D4F] text-white rounded-lg hover:bg-[#FF4D4F]/90 transition-all cursor-pointer"
-              >
-                <XCircle className="w-4 h-4" />
-                <span>Reject</span>
-              </motion.button>
+              <Button onClick={() => onApprove(ticket.id)} variant="success">
+                  <CheckCircle />
+                  <span>Approve</span>
+              </Button>
+              <Button onClick={() => onReject(ticket.id)} variant="destructive">
+                  <XCircle />
+                  <span>Reject</span>
+              </Button>
             </>
           )}
 
           {ticket.status === 'approved' && onStartProgress && (
-            <motion.button
-              onClick={() => onStartProgress(ticket.id)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#3942A7] text-white rounded-lg hover:bg-[#3942A7]/90 transition-all cursor-pointer"
-            >
-              <PlayCircle className="w-4 h-4" />
-              <span>Start Working</span>
-            </motion.button>
+            <Button onClick={() => onStartProgress(ticket.id)}>
+                <PlayCircle />
+                <span>Start Working</span>
+            </Button>
           )}
 
           {ticket.status === 'in-progress' && onResolve && (
-            <motion.button
-              onClick={() => onResolve(ticket.id)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#1DB954] text-white rounded-lg hover:bg-[#1DB954]/90 transition-all cursor-pointer"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>Mark as Resolved</span>
-            </motion.button>
+            <Button onClick={() => onResolve(ticket.id)} variant="success">
+                <CheckCircle />
+                <span>Mark as Resolved</span>
+            </Button>
           )}
         </div>
       )}
