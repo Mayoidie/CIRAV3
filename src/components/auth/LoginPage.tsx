@@ -15,22 +15,64 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignup, onNavigateToForgotPassword }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({ email: false, password: false });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [showUnverifiedEmailMessage, setShowUnverifiedEmailMessage] = useState(false);
   const { showToast } = useToast();
   const emailInputRef = useRef<HTMLInputElement>(null);
 
+  const validateField = (name: string, value: string): string => {
+    switch (name) {
+      case 'email':
+        if (!value || value === '@plv.edu.ph') return 'Email is required';
+        if (!value.endsWith('@plv.edu.ph')) return 'Email must be a valid @plv.edu.ph address';
+        return '';
+      case 'password':
+        if (!value) return 'Password is required';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[name] = error;
+      } else {
+        delete newErrors[name];
+      }
+      return newErrors;
+    });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      const error = validateField(name, value);
+      if (!error) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
+    }
+  };
+
   const handleEmailFocus = () => {
-    if (!email) {
-      setEmail('@plv.edu.ph');
+    if (!formData.email) {
+      setFormData(prev => ({ ...prev, email: '@plv.edu.ph' }));
     }
   };
 
   const handleEmailClick = () => {
-    if (emailInputRef.current && email === '@plv.edu.ph') {
+    if (emailInputRef.current && formData.email === '@plv.edu.ph') {
       setTimeout(() => {
         emailInputRef.current?.setSelectionRange(0, 0);
       }, 0);
@@ -38,35 +80,50 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
   };
 
   useEffect(() => {
-    if (email === '@plv.edu.ph' && emailInputRef.current) {
+    if (formData.email === '@plv.edu.ph' && emailInputRef.current) {
       setTimeout(() => {
         emailInputRef.current?.setSelectionRange(0, 0);
       }, 0);
     }
-  }, [email]);
+  }, [formData.email]);
 
   const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    handleBlur(e);
+    const { value } = e.target;
     if (value === '@plv.edu.ph') {
-      setEmail('');
+      setFormData(prev => ({ ...prev, email: '' }));
+    } else if (value && !value.endsWith('@plv.edu.ph')) {
+      setFormData(prev => ({ ...prev, email: value + '@plv.edu.ph' }));
     }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    const fields: Array<keyof typeof formData> = ['email', 'password'];
+
+    fields.forEach(field => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+
+    setErrors(newErrors);
+    const isValid = Object.keys(newErrors).length === 0;
+    if (!isValid) {
+      showToast('Please check the form for errors.', 'error');
+    }
+    return isValid;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({ email: false, password: false });
-
-    const newErrors = { email: !email, password: !password };
-    if (newErrors.email || newErrors.password) {
-      setErrors(newErrors);
-      showToast('Please fill in all required fields', 'error');
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
 
       if (!user.emailVerified) {
@@ -83,6 +140,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
       }
     } catch (error) {
       showToast('Invalid email or password', 'error');
+      setErrors({ email: 'Invalid email or password', password: ' ' });
     } finally {
       setIsLoading(false);
     }
@@ -141,14 +199,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                 <h2 className="text-[#1E1E1E] mb-6">Login to your account</h2>
                 <form onSubmit={handleLogin} className="space-y-5">
                   <div>
-                    <label className="block text-[#1E1E1E] mb-2">Email</label>
+                    <label className="block text-[#1E1E1E] mb-2">
+                      Email {errors.email && <span className="text-[#FF4D4F]">*</span>}
+                    </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                       <input
                         ref={emailInputRef}
                         type="text"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
                         onFocus={handleEmailFocus}
                         onClick={handleEmailClick}
                         onBlur={handleEmailBlur}
@@ -156,19 +217,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                         placeholder="your.email@plv.edu.ph"
                       />
                     </div>
+                    {errors.email && <p className="text-[#FF4D4F] text-sm mt-1">{errors.email}</p>}
                   </div>
                   <div>
-                    <label className="block text-[#1E1E1E] mb-2">Password</label>
+                    <label className="block text-[#1E1E1E] mb-2">
+                      Password {errors.password && <span className="text-[#FF4D4F]">*</span>}
+                    </label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
                       <input
                         type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
                         className={`w-full pl-10 pr-4 py-3 border ${errors.password ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
                         placeholder="••••••••"
                       />
                     </div>
+                    {errors.password && <p className="text-[#FF4D4F] text-sm mt-1">{errors.password}</p>}
                   </div>
                   <button type="button" onClick={onNavigateToForgotPassword} className="text-[#3942A7] hover:underline transition-all">
                     Forgot password?
