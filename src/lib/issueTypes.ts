@@ -49,7 +49,7 @@ export const CLASSROOM_DATA = {
 export const ISSUE_TYPES = {
   hardware: {
     label: 'Hardware Issue',
-    subtypes: ['Mouse', 'Monitor', 'Keyboard', 'CPU', 'Power Supply', 'Cables'],
+    subtypes: ['Mouse', 'Monitor', 'Keyboard', 'System Unit', 'Power Supply', 'Cables'],
   },
   software: {
     label: 'Software Issue',

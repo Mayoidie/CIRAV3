@@ -21,22 +21,24 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false); 
-  const [isImageProcessing, setIsImageProcessing] = useState(false); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
-  const [hoveredUpload, setHoveredUpload] = useState(false); 
+  const [hoveredUpload, setHoveredUpload] = useState(false);
+
+  const selectedIssueType = formData.issueType ? ISSUE_TYPES[formData.issueType as keyof typeof ISSUE_TYPES] : null;
 
   const processImage = async (imageFile: File): Promise<File> => {
     console.log('Processing image:', imageFile.name);
     await new Promise(resolve => setTimeout(resolve, 500));
-    return imageFile; 
+    return imageFile;
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setIsImageProcessing(true); 
+      setIsImageProcessing(true);
       try {
         const processedFile = await processImage(file);
         setImageFile(processedFile);
@@ -61,7 +63,10 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     setFormData((prevData) => {
       const newData = { ...prevData, [name]: value };
       if (name === 'classroom') {
-        newData.unitId = ''; 
+        newData.unitId = '';
+      }
+      if (name === 'issueType') {
+        newData.issueSubtype = '';
       }
       return newData;
     });
@@ -72,8 +77,11 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     const newErrors: Record<string, boolean> = {};
 
     if (!formData.classroom) newErrors.classroom = true;
-    if (formData.issueType !== 'other' && !formData.unitId) newErrors.unitId = true; 
+    if (formData.issueSubtype && !formData.unitId) newErrors.unitId = true;
     if (!formData.issueType) newErrors.issueType = true;
+    if (selectedIssueType && selectedIssueType.subtypes.length > 0 && !formData.issueSubtype) {
+      newErrors.issueSubtype = true;
+    }
     if (!formData.issueDescription) newErrors.issueDescription = true;
 
     if (Object.keys(newErrors).length > 0) {
@@ -115,7 +123,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
           console.error('Error during image upload or getting download URL:', imageUploadError);
           showToast('Failed to upload image. Please try again.', 'error');
           setIsLoading(false);
-          return; 
+          return;
         }
       }
 
@@ -159,7 +167,6 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     }
   };
 
-  const selectedIssueType = formData.issueType ? ISSUE_TYPES[formData.issueType as keyof typeof ISSUE_TYPES] : null;
   const selectedClassroomData = formData.classroom ? CLASSROOM_DATA[formData.classroom as keyof typeof CLASSROOM_DATA] : null;
   const unitIdOptions = selectedClassroomData
     ? Array.from({ length: selectedClassroomData.unitRange[1] - selectedClassroomData.unitRange[0] + 1 }, (_, i) => {
@@ -168,13 +175,12 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
       })
     : [];
 
-  const isUnitIdRequired = formData.issueType !== 'other';
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl shadow-md p-6">
       <h3 className="text-[#1E1E1E]">Report an Issue</h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
+        {/* Classroom */}
         <div>
           <label className="block text-[#1E1E1E] mb-2">
             Classroom <span className="text-[#FF4D4F]">*</span>
@@ -194,71 +200,79 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
           </select>
         </div>
 
-        <div>
-          <label htmlFor="unitId" className="block text-[#1E1E1E] mb-2">
-            Unit ID {isUnitIdRequired && <span className="text-[#FF4D4F]">*</span>}
-          </label>
-          <select
-            id="unitId"
-            name="unitId"
-            value={formData.unitId}
-            onChange={handleChange}
-            className={`w-full p-3 border rounded-lg ${
-              errors.unitId ? 'border-[#FF4D4F]' : 'border-[#D1D5DB]'
-            } focus:ring focus:ring-blue-200 focus:border-blue-500`}
-            disabled={!formData.classroom && isUnitIdRequired} 
-          >
-            <option value="">{isUnitIdRequired ? 'Select Unit ID' : 'Select Unit ID (Optional)'}</option>
-            {unitIdOptions.map((unitId) => (
-              <option key={unitId} value={unitId}>
-                {unitId}
-              </option>
-            ))}
-          </select>
-          {errors.unitId && isUnitIdRequired && <p className="text-[#FF4D4F] text-sm mt-1">Unit ID is required.</p>}
-        </div>
+        {formData.classroom && (
+          <>
+            {/* Issue Type */}
+            <div>
+              <label className="block text-[#1E1E1E] mb-2">
+                Issue Type <span className="text-[#FF4D4F]">*</span>
+              </label>
+              <select
+                value={formData.issueType}
+                onChange={handleChange}
+                name="issueType"
+                className={`w-full px-4 py-3 border ${errors.issueType ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+              >
+                <option value="">Select Issue Type</option>
+                {Object.entries(ISSUE_TYPES).map(([key, value]) => (
+                  <option key={key} value={key}>{value.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Issue Subtype */}
+            {selectedIssueType && selectedIssueType.subtypes.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <label className="block text-[#1E1E1E] mb-2">
+                  Issue Subtype <span className="text-[#FF4D4F]">*</span>
+                </label>
+                <select
+                  value={formData.issueSubtype}
+                  onChange={handleChange}
+                  name="issueSubtype"
+                  className={`w-full px-4 py-3 border ${errors.issueSubtype ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+                >
+                  <option value="">Select Subtype</option>
+                  {selectedIssueType.subtypes.map(subtype => (
+                    <option key={subtype} value={subtype}>{subtype}</option>
+                  ))}
+                </select>
+              </motion.div>
+            )}
+
+            {/* Unit ID */}
+            {formData.issueSubtype && (
+              <div>
+                <label htmlFor="unitId" className="block text-[#1E1E1E] mb-2">
+                  Unit ID <span className="text-[#FF4D4F]">*</span>
+                </label>
+                <select
+                  id="unitId"
+                  name="unitId"
+                  value={formData.unitId}
+                  onChange={handleChange}
+                  className={`w-full p-3 border rounded-lg ${
+                    errors.unitId ? 'border-[#FF4D4F]' : 'border-[#D1D5DB]'
+                  } focus:ring focus:ring-blue-200 focus:border-blue-500`}
+                >
+                  <option value="">Select Unit ID</option>
+                  {unitIdOptions.map((unitId) => (
+                    <option key={unitId} value={unitId}>
+                      {unitId}
+                    </option>
+                  ))}
+                </select>
+                {errors.unitId && <p className="text-[#FF4D4F] text-sm mt-1">Unit ID is required.</p>}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      <div>
-        <label className="block text-[#1E1E1E] mb-2">
-          Issue Type <span className="text-[#FF4D4F]">*</span>
-        </label>
-        <select
-          value={formData.issueType}
-          onChange={(e) => {
-            setFormData({ ...formData, issueType: e.target.value, issueSubtype: '' });
-            setErrors((prevErrors) => ({ ...prevErrors, issueType: false }));
-          }}
-          name="issueType"
-          className={`w-full px-4 py-3 border ${errors.issueType ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-        >
-          <option value="">Select Issue Type</option>
-          {Object.entries(ISSUE_TYPES).map(([key, value]) => (
-            <option key={key} value={key}>{value.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {selectedIssueType && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <label className="block text-[#1E1E1E] mb-2">Issue Subtype</label>
-          <select
-            value={formData.issueSubtype}
-            onChange={handleChange}
-            name="issueSubtype"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all"
-          >
-            <option value="">Select Subtype (Optional)</option>
-            {selectedIssueType.subtypes.map(subtype => (
-              <option key={subtype} value={subtype}>{subtype}</option>
-            ))}
-          </select>
-        </motion.div>
-      )}
-
+      {/* Issue Description */}
       <div>
         <label className="block text-[#1E1E1E] mb-2">
           Issue Description <span className="text-[#FF4D4F]">*</span>
@@ -273,6 +287,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         />
       </div>
 
+      {/* Image Upload */}
       <div>
         <label className="block text-[#1E1E1E] mb-2">Upload Image (Optional)</label>
         <div
@@ -289,7 +304,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
             onChange={handleImageChange}
             className="hidden"
             id="image-upload"
-            disabled={isImageProcessing || isLoading} 
+            disabled={isImageProcessing || isLoading}
           />
           <label htmlFor="image-upload" className="cursor-pointer">
             {isImageProcessing ? (
@@ -316,6 +331,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         </div>
       </div>
 
+      {/* Submit Button */}
       <motion.button
         type="submit"
         disabled={isLoading || isImageProcessing}
