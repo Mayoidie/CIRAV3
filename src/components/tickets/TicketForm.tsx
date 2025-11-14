@@ -1,24 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Send } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
-import { CLASSROOM_DATA, ISSUE_TYPES } from '../../lib/issueTypes'; // Updated import
 import { db, auth } from '../../lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface TicketFormProps {
   onSuccess: () => void;
 }
 
+interface FormField {
+  id: string;
+  label: string;
+  type: 'text' | 'select' | 'textarea';
+  name: string;
+  options?: string[];
+}
+
 export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
-  const [formData, setFormData] = useState({
-    classroom: '',
-    unitId: '',
-    issueType: '',
-    issueSubtype: '',
-    issueDescription: '',
-  });
+  const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +29,24 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
   const { showToast } = useToast();
   const [hoveredUpload, setHoveredUpload] = useState(false);
 
-  const selectedIssueType = formData.issueType ? ISSUE_TYPES[formData.issueType as keyof typeof ISSUE_TYPES] : null;
+  useEffect(() => {
+    const fetchFormStructure = async () => {
+        const formFieldsCollection = collection(db, 'form-structure');
+        const querySnapshot = await getDocs(formFieldsCollection);
+        const fields = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Backward compatibility for object-based options
+            if (data.type === 'select' && data.options && data.options.length > 0 && typeof data.options[0] === 'object') {
+                data.options = data.options.map((opt: any) => opt.label);
+            }
+            return { id: doc.id, ...data } as FormField;
+        });
+        setFormFields(fields);
+        const initialFormData = fields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {});
+        setFormData(initialFormData);
+    };
+    fetchFormStructure();
+  }, []);
 
   const processImage = async (imageFile: File): Promise<File> => {
     console.log('Processing image:', imageFile.name);
@@ -60,29 +79,17 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prevData) => {
-      const newData = { ...prevData, [name]: value };
-      if (name === 'classroom') {
-        newData.unitId = '';
-      }
-      if (name === 'issueType') {
-        newData.issueSubtype = '';
-      }
-      return newData;
-    });
+    setFormData((prevData) => ({ ...prevData, [name]: value }));
     setErrors((prevErrors) => ({ ...prevErrors, [name]: false }));
   };
 
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {};
-
-    if (!formData.classroom) newErrors.classroom = true;
-    if (formData.issueSubtype && !formData.unitId) newErrors.unitId = true;
-    if (!formData.issueType) newErrors.issueType = true;
-    if (selectedIssueType && selectedIssueType.subtypes.length > 0 && !formData.issueSubtype) {
-      newErrors.issueSubtype = true;
-    }
-    if (!formData.issueDescription) newErrors.issueDescription = true;
+    formFields.forEach(field => {
+      if (!formData[field.name]) {
+        newErrors[field.name] = true;
+      }
+    });
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -111,20 +118,10 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     try {
       let imageUrl = '';
       if (imageFile) {
-        console.log('Attempting to upload image...');
         const storage = getStorage();
         const storageRef = ref(storage, `tickets/${user.uid}/${Date.now()}_${imageFile.name}`);
-        try {
-          const snapshot = await uploadBytes(storageRef, imageFile);
-          console.log('Image uploaded successfully:', snapshot);
-          imageUrl = await getDownloadURL(snapshot.ref);
-          console.log('Image download URL:', imageUrl);
-        } catch (imageUploadError) {
-          console.error('Error during image upload or getting download URL:', imageUploadError);
-          showToast('Failed to upload image. Please try again.', 'error');
-          setIsLoading(false);
-          return;
-        }
+        const snapshot = await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
       }
 
       const currentUserData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -132,11 +129,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
       await addDoc(collection(db, 'tickets'), {
         userId: user.uid,
-        classroom: formData.classroom,
-        unitId: formData.unitId,
-        issueType: formData.issueType,
-        issueSubtype: formData.issueSubtype,
-        issueDescription: formData.issueDescription,
+        ...formData,
         imageUrl,
         status,
         createdAt: serverTimestamp(),
@@ -149,142 +142,53 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         'success'
       );
 
-      setFormData({
-        classroom: '',
-        unitId: '',
-        issueType: '',
-        issueSubtype: '',
-        issueDescription: '',
-      });
+      const initialFormData = formFields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {});
+      setFormData(initialFormData);
       setImageFile(null);
       setImagePreview('');
       onSuccess();
     } catch (error) {
-      console.error('Error submitting ticket (Firestore part):', error);
+      console.error('Error submitting ticket:', error);
       showToast('Failed to submit ticket', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const selectedClassroomData = formData.classroom ? CLASSROOM_DATA[formData.classroom as keyof typeof CLASSROOM_DATA] : null;
-  const unitIdOptions = selectedClassroomData
-    ? Array.from({ length: selectedClassroomData.unitRange[1] - selectedClassroomData.unitRange[0] + 1 }, (_, i) => {
-        const unitNumber = selectedClassroomData.unitRange[0] + i;
-        return `${selectedClassroomData.unitPrefix}${unitNumber < 10 ? `0${unitNumber}` : unitNumber}`;
-      })
-    : [];
+  const renderField = (field: FormField) => {
+    const { id, label, type, name, options } = field;
+    const commonProps = {
+      name,
+      value: formData[name] || '',
+      onChange: handleChange,
+      className: `w-full px-4 py-3 border ${errors[name] ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`,
+    };
+
+    return (
+      <div key={id}>
+        <label className="block text-[#1E1E1E] mb-2">
+          {label} <span className="text-[#FF4D4F]">*</span>
+        </label>
+        {type === 'text' && <input type="text" {...commonProps} />}
+        {type === 'textarea' && <textarea rows={4} {...commonProps} />}
+        {type === 'select' && (
+          <select {...commonProps}>
+            <option value="">Select {label}</option>
+            {options?.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        )}
+      </div>
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl shadow-md p-6">
       <h3 className="text-[#1E1E1E]">Report an Issue</h3>
 
       <div className="grid grid-cols-1 gap-6">
-        {/* Classroom */}
-        <div>
-          <label className="block text-[#1E1E1E] mb-2">
-            Classroom <span className="text-[#FF4D4F]">*</span>
-          </label>
-          <select
-            value={formData.classroom}
-            onChange={handleChange}
-            name="classroom"
-            className={`w-full px-4 py-3 border ${errors.classroom ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-          >
-            <option value="">Select Classroom</option>
-            {Object.entries(CLASSROOM_DATA).map(([key, value]) => (
-              <option key={key} value={key}>
-                {value.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {formData.classroom && (
-          <>
-            {/* Issue Type */}
-            <div>
-              <label className="block text-[#1E1E1E] mb-2">
-                Issue Type <span className="text-[#FF4D4F]">*</span>
-              </label>
-              <select
-                value={formData.issueType}
-                onChange={handleChange}
-                name="issueType"
-                className={`w-full px-4 py-3 border ${errors.issueType ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-              >
-                <option value="">Select Issue Type</option>
-                {Object.entries(ISSUE_TYPES).map(([key, value]) => (
-                  <option key={key} value={key}>{value.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Issue Subtype */}
-            {selectedIssueType && selectedIssueType.subtypes.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <label className="block text-[#1E1E1E] mb-2">
-                  Issue Subtype <span className="text-[#FF4D4F]">*</span>
-                </label>
-                <select
-                  value={formData.issueSubtype}
-                  onChange={handleChange}
-                  name="issueSubtype"
-                  className={`w-full px-4 py-3 border ${errors.issueSubtype ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-                >
-                  <option value="">Select Subtype</option>
-                  {selectedIssueType.subtypes.map(subtype => (
-                    <option key={subtype} value={subtype}>{subtype}</option>
-                  ))}
-                </select>
-              </motion.div>
-            )}
-
-            {/* Unit ID */}
-            {formData.issueSubtype && (
-              <div>
-                <label htmlFor="unitId" className="block text-[#1E1E1E] mb-2">
-                  Unit ID <span className="text-[#FF4D4F]">*</span>
-                </label>
-                <select
-                  id="unitId"
-                  name="unitId"
-                  value={formData.unitId}
-                  onChange={handleChange}
-                  className={`w-full p-3 border rounded-lg ${
-                    errors.unitId ? 'border-[#FF4D4F]' : 'border-[#D1D5DB]'
-                  } focus:ring focus:ring-blue-200 focus:border-blue-500`}
-                >
-                  <option value="">Select Unit ID</option>
-                  {unitIdOptions.map((unitId) => (
-                    <option key={unitId} value={unitId}>
-                      {unitId}
-                    </option>
-                  ))}
-                </select>
-                {errors.unitId && <p className="text-[#FF4D4F] text-sm mt-1">Unit ID is required.</p>}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Issue Description */}
-      <div>
-        <label className="block text-[#1E1E1E] mb-2">
-          Issue Description <span className="text-[#FF4D4F]">*</span>
-        </label>
-        <textarea
-          value={formData.issueDescription}
-          onChange={handleChange}
-          name="issueDescription"
-          rows={4}
-          className={`w-full px-4 py-3 border ${errors.issueDescription ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-          placeholder="Please describe the issue in detail..."
-        />
+        {formFields.map(renderField)}
       </div>
 
       {/* Image Upload */}
