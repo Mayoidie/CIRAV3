@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Send } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
 import { db, auth } from '../../lib/firebase';
@@ -11,12 +10,25 @@ interface TicketFormProps {
   onSuccess: () => void;
 }
 
+interface OptionSet {
+  options: string[];
+  condition?: {
+    field: string;
+    value: string;
+  };
+}
+
 interface FormField {
   id: string;
   label: string;
   type: 'text' | 'select' | 'textarea';
   name: string;
-  options?: string[];
+  options?: string[]; // Kept for backwards compatibility
+  optionSets?: OptionSet[];
+  conditional?: {
+    field: string;
+    value: string;
+  };
 }
 
 export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
@@ -35,20 +47,70 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     const q = query(formFieldsCollection, orderBy('order'));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const fields = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        if (data.type === 'select' && data.options && data.options.length > 0 && typeof data.options[0] === 'object') {
-          data.options = data.options.map((opt: any) => opt.label);
-        }
-        return { id: doc.id, ...data } as FormField;
-      });
-      setFormFields(fields);
-      const initialFormData = fields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {});
-      setFormData(initialFormData);
+        const newFields = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormField));
+        setFormFields(newFields);
+
+        // Preserve existing form data when the form structure changes
+        setFormData(currentData => {
+            const newFormData = newFields.reduce((acc, field) => ({ ...acc, [field.name]: currentData[field.name] || '' }), {});
+            return newFormData;
+        });
     });
 
     return () => unsubscribe();
-  }, []);
+}, []);
+
+  const isFieldVisible = (field: FormField, data: Record<string, string>): boolean => {
+    if (field.conditional && field.conditional.field && field.conditional.value) {
+        const controllingField = formFields.find(f => f.id === field.conditional.field);
+        if (!controllingField) return false;
+
+        const controllingFieldValue = data[controllingField.name];
+
+        if (field.conditional.value === 'any') {
+            if (!controllingFieldValue) return false;
+        } else {
+            if (controllingFieldValue !== field.conditional.value) return false;
+        }
+
+        // Recursively check if the controlling field itself is visible
+        return isFieldVisible(controllingField, data);
+    }
+    return true;
+  };
+
+  const getOptionsForField = (field: FormField, data: Record<string, string>): string[] => {
+    if (field.type !== 'select') {
+        return [];
+    }
+
+    if (field.optionSets && field.optionSets.length > 0) {
+        const defaultSet = field.optionSets.find(set => !set.condition);
+        let options = defaultSet ? [...defaultSet.options] : [];
+
+        const conditionalSets = field.optionSets.filter(set => {
+            if (!set.condition || !set.condition.field || !set.condition.value) return false;
+            const controllingField = formFields.find(f => f.id === set.condition.field);
+            if (!controllingField) return false;
+
+            const controllingFieldValue = data[controllingField.name];
+            if (set.condition.value === 'any') {
+                return !!controllingFieldValue;
+            } else {
+                return controllingFieldValue === set.condition.value;
+            }
+        });
+
+        if (conditionalSets.length > 0) {
+            const conditionalOptions = conditionalSets.flatMap(set => set.options);
+            options = [...options, ...conditionalOptions];
+        }
+        
+        return [...new Set(options)]; // Return unique options
+    }
+
+    return field.options || [];
+}
 
   const processImage = async (imageFile: File): Promise<File> => {
     console.log('Processing image:', imageFile.name);
@@ -70,7 +132,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         reader.readAsDataURL(processedFile);
       } catch (error) {
         console.error('Error processing image:', error);
-        showToast('Failed to process image.', 'error');
+        showToast('Failed to process image', 'error');
         setImageFile(null);
         setImagePreview('');
       } finally {
@@ -81,14 +143,56 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
-    setErrors((prevErrors) => ({ ...prevErrors, [name]: false }));
+
+    setFormData(currentData => {
+        // Start with the user's direct change
+        const newData = { ...currentData, [name]: value };
+
+        // Recursively clean the data to handle cascading changes.
+        // 1. If a field becomes hidden, its value is cleared.
+        // 2. If a dropdown's selected value is no longer in its list of available options, it's cleared.
+        const cleanData = (data: Record<string, string>): Record<string, string> => {
+            let changed = false;
+            const cleanedData = { ...data };
+
+            formFields.forEach(field => {
+                const isVisible = isFieldVisible(field, cleanedData);
+                
+                // If field is not visible and has a value, clear it.
+                if (!isVisible && cleanedData[field.name]) {
+                    cleanedData[field.name] = '';
+                    changed = true;
+                }
+
+                // If field is a visible dropdown, check if its value is still valid.
+                if (isVisible && field.type === 'select') {
+                    const options = getOptionsForField(field, cleanedData);
+                    if (cleanedData[field.name] && !options.includes(cleanedData[field.name])) {
+                        cleanedData[field.name] = '';
+                        changed = true;
+                    }
+                }
+            });
+
+            // If a value was cleared, run the cleaning process again
+            // to ensure any fields that depended on the cleared value are also updated.
+            if (changed) {
+                return cleanData(cleanedData);
+            }
+            
+            return cleanedData;
+        };
+
+        return cleanData(newData);
+    });
+
+    setErrors(prev => ({ ...prev, [name]: false }));
   };
 
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {};
     formFields.forEach(field => {
-      if (!formData[field.name]) {
+      if (isFieldVisible(field, formData) && !formData[field.name]) {
         newErrors[field.name] = true;
       }
     });
@@ -129,9 +233,16 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
       const currentUserData = JSON.parse(localStorage.getItem('currentUser') || '{}');
       const status = currentUserData.role === 'class-representative' ? 'approved' : 'pending';
 
+      const submissionData: Record<string, any> = {};
+      formFields
+        .filter(field => isFieldVisible(field, formData))
+        .forEach(field => {
+          submissionData[field.name] = formData[field.name];
+        });
+
       await addDoc(collection(db, 'tickets'), {
         userId: user.uid,
-        ...formData,
+        ...submissionData,
         imageUrl,
         status,
         createdAt: serverTimestamp(),
@@ -158,7 +269,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
   };
 
   const renderField = (field: FormField) => {
-    const { id, label, type, name, options } = field;
+    const { id, label, type, name } = field;
     const commonProps = {
       name,
       value: formData[name] || '',
@@ -166,8 +277,16 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
       className: `w-full px-4 py-3 border ${errors[name] ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`,
     };
 
+    const options = getOptionsForField(field, formData);
+
     return (
-      <div key={id}>
+      <motion.div 
+        key={id}
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.2 }}
+      >
         <label className="block text-[#1E1E1E] mb-2">
           {label} <span className="text-[#FF4D4F]">*</span>
         </label>
@@ -176,22 +295,24 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         {type === 'select' && (
           <select {...commonProps}>
             <option value="">Select {label}</option>
-            {options?.map(option => (
+            {options.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
           </select>
         )}
-      </div>
+      </motion.div>
     );
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl shadow-md p-6">
-      <h3 className="text-[#1E1E1E]">Report an Issue</h3>
+      <h3 className="text-[#1E1E1E]">Update Issue</h3>
 
-      <div className="grid grid-cols-1 gap-6">
-        {formFields.map(renderField)}
-      </div>
+      <AnimatePresence>
+        <div className="grid grid-cols-1 gap-6">
+          {formFields.filter(field => isFieldVisible(field, formData)).map(renderField)}
+        </div>
+      </AnimatePresence>
 
       {/* Image Upload */}
       <div>
@@ -250,7 +371,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         ) : (
           <>
             <Send className="w-5 h-5" />
-            <span>Submit Ticket</span>
+            <span>Update Ticket</span>
           </>
         )}
       </motion.button>
