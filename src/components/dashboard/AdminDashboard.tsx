@@ -1,25 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Search, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle, Users, Check, X, Pencil, Edit } from 'lucide-react';
+import { collection, onSnapshot, query, doc, deleteDoc, updateDoc, writeBatch, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { collection, query, onSnapshot, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '../ui/toast-container';
 import { SettingsPage } from '../settings/SettingsPage';
 import { UserManagement } from './UserManagement';
-import FormEditor from './FormEditor'; // Import the new component
+import FormEditor from './FormEditor';
 import { Button } from '../ui/button';
+import { Ticket, Clock, CheckCircle, AlertCircle, FileText, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle, Users, Check, X, Pencil, Edit } from 'lucide-react';
+
+interface FormField {
+  id: string;
+  label: string;
+  name: string;
+  type: 'text' | 'select' | 'textarea';
+  order: number;
+}
 
 interface TicketType {
   id: string;
-  classroom: string;
-  issueDescription: string;
-  issueType: string;
   status: 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
-  unitId?: string;
   approvedAt?: { toDate: () => Date };
+  [key: string]: any; // Allow dynamic properties
 }
 
 interface AdminDashboardProps {
@@ -29,7 +34,8 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management' | 'form-editor'>('tickets'); // Add 'form-editor' to the type
+  const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management' | 'form-editor'>('tickets');
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState('all');
@@ -40,8 +46,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const [showResolutionNote, setShowResolutionNote] = useState<{ [key: string]: boolean }>({});
 
   const { showToast } = useToast();
-  
-    useEffect(() => {
+
+  useEffect(() => {
     if (logoClickTime > 0) {
       setActiveTab('tickets');
       setReviewFilter('all');
@@ -61,6 +67,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
       setTickets(ticketsData);
     });
 
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const formFieldsCollection = query(collection(db, 'form-structure'), orderBy('order'));
+    const unsubscribe = onSnapshot(formFieldsCollection, (snapshot) => {
+      const fields = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormField));
+      const uniqueFields = fields.filter((field, index, self) => 
+        index === self.findIndex(f => f.name === field.name)
+      );
+      setFormFields(uniqueFields);
+    });
     return () => unsubscribe();
   }, []);
 
@@ -303,10 +321,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
             <div className="mb-6 flex gap-4">
                 <select value={searchField} onChange={(e) => {setSearchField(e.target.value); setSearchValue('');}} className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all">
                     <option value="all">All Fields</option>
-                    <option value="id">Ticket ID</option>
-                    <option value="issueType">Issue Type</option>
-                    <option value="unitId">Unit ID</option>
-                    <option value="classroom">Classroom</option>
+                    {formFields.map(field => (
+                        <option key={field.id} value={field.name}>{field.label}</option>
+                    ))}
                     <option value="approvedAt">Date Approved</option>
                     <option value="status">Status</option>
                 </select>
@@ -327,10 +344,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
                 <table className="w-full text-sm">
                   <thead className="text-xs text-white uppercase" style={{backgroundColor: '#3942A7'}}>
                     <tr>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Ticket ID</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Issue Type</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Unit ID</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Classroom</div></th>
+                      {formFields.map(field => (
+                        <th key={field.id} scope="col" className="px-6 py-3"><div className="flex items-center justify-center">{field.label}</div></th>
+                      ))}
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Approved</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Actions</div></th>
@@ -339,10 +355,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
                   <tbody>
                     {filteredTickets.map((ticket, index) => (
                       <tr key={ticket.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap"><div className="flex items-center justify-center">{ticket.id.slice(0, 8)}...</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.issueType}</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.unitId || 'N/A'}</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.classroom}</div></td>
+                        {formFields.map(field => (
+                            <td key={field.id} className="px-6 py-4"><div className="flex items-center justify-center">{ticket[field.name] || 'N/A'}</div></td>
+                        ))}
                         <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
                         <td className="px-6 py-4">
                             <div className="flex items-center justify-center">
