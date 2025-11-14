@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '../../lib/firebase';
-import { collection, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, query, orderBy } from 'firebase/firestore';
 import { Button } from '../ui/button';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 
 interface Field {
   id: string;
@@ -11,6 +12,7 @@ interface Field {
   type: string;
   name: string;
   options?: string[];
+  order: number;
 }
 
 const FormEditor = () => {
@@ -26,10 +28,10 @@ const FormEditor = () => {
 
   const fetchFormFields = async () => {
     setLoading(true);
-    const querySnapshot = await getDocs(formFieldsCollection);
+    const q = query(formFieldsCollection, orderBy('order'));
+    const querySnapshot = await getDocs(q);
     const fields = querySnapshot.docs.map(doc => {
       const data = doc.data();
-      // Backward compatibility for object-based options
       if (data.type === 'select' && data.options && data.options.length > 0 && typeof data.options[0] === 'object') {
         data.options = data.options.map((opt: any) => opt.label);
       }
@@ -46,7 +48,8 @@ const FormEditor = () => {
   }, []);
 
   useEffect(() => {
-    setHasChanges(JSON.stringify(originalFormFields) !== JSON.stringify(editedFormFields));
+    const changed = JSON.stringify(originalFormFields.map(f => ({...f, id: ''}))) !== JSON.stringify(editedFormFields.map(f => ({...f, id: ''})));
+    setHasChanges(changed);
   }, [editedFormFields, originalFormFields]);
 
   const handleAddField = () => {
@@ -59,6 +62,7 @@ const FormEditor = () => {
       type: newField.type,
       name: newField.label.toLowerCase().replace(/\s/g, '-'),
       id: `new-${Date.now()}`,
+      order: editedFormFields.length,
     };
     if (newField.type === 'select') {
       fieldToAdd.options = newField.options.filter(opt => opt.trim() !== '');
@@ -69,22 +73,23 @@ const FormEditor = () => {
   };
 
   const handleDeleteField = (id: string) => {
-    setEditedFormFields(editedFormFields.filter(field => field.id !== id));
+    const updatedFields = editedFormFields.filter(field => field.id !== id)
+      .map((field, index) => ({ ...field, order: index }));
+    setEditedFormFields(updatedFields);
   };
 
   const handleSaveChanges = async () => {
     setLoading(true);
     const batch = writeBatch(db);
 
-    editedFormFields.forEach(field => {
+    editedFormFields.forEach((field, index) => {
       const { id, ...fieldData } = field;
+      const data = { ...fieldData, order: index };
       if (id.startsWith('new-')) {
-        batch.set(doc(formFieldsCollection), fieldData);
+        const { id: newId, ...rest } = data;
+        batch.set(doc(formFieldsCollection), rest);
       } else {
-        const originalField = originalFormFields.find(f => f.id === id);
-        if (JSON.stringify(originalField) !== JSON.stringify(field)) {
-          batch.update(doc(db, 'form-structure', id), fieldData);
-        }
+        batch.update(doc(db, 'form-structure', id), data);
       }
     });
 
@@ -153,6 +158,14 @@ const FormEditor = () => {
       setNewField(prev => ({ ...prev, options: updatedOptions }));
   };
 
+  const onDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const items = Array.from(editedFormFields);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    const updatedItems = items.map((item, index) => ({ ...item, order: index }));
+    setEditedFormFields(updatedItems);
+  };
 
   if (loading) {
     return <div>Loading...</div>
@@ -164,79 +177,102 @@ const FormEditor = () => {
       <div className="flex flex-col md:flex-row md:gap-8">
         <div className="flex-1">
             <h4 className="font-semibold mb-2">Current Form Fields</h4>
-            <div className="space-y-2">
-            {editedFormFields.map(field => (
-                <div key={field.id} className="p-3 border rounded-lg bg-gray-50">
-                {editingField && editingField.id === field.id ? (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
-                            <input
-                                type="text"
-                                value={editingField.label}
-                                onChange={e => setEditingField({ ...editingField, label: e.target.value, name: e.target.value.toLowerCase().replace(/\s/g, '-') })}
-                                className="w-full p-2 border rounded"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                            <select
-                                value={editingField.type}
-                                onChange={e => setEditingField({ ...editingField, type: e.target.value })}
-                                className="w-full p-2 border rounded"
-                            >
-                                <option value="text">Text</option>
-                                <option value="select">Dropdown</option>
-                                <option value="textarea">Text Area</option>
-                            </select>
-                        </div>
-
-                        {editingField.type === 'select' && (
-                            <div>
-                                <h5 className="font-semibold mt-4 mb-2">Options</h5>
-                                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                                    {editingField.options?.map((option, index) => (
-                                        <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Droppable droppableId="fields">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                    {editedFormFields.map((field, index) => (
+                      <Draggable key={field.id} draggableId={field.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`p-3 border rounded-lg bg-gray-50 ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                          >
+                            <div className="flex items-center">
+                              <div {...provided.dragHandleProps} className="pr-2 pt-1 cursor-grab">
+                                <GripVertical className="h-5 w-5 text-gray-400" />
+                              </div>
+                                {editingField && editingField.id === field.id ? (
+                                    <div className="w-full space-y-4 flex-grow">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
                                             <input
                                                 type="text"
-                                                placeholder="Option Label"
-                                                value={option}
-                                                onChange={(e) => handleOptionChange(index, e.target.value)}
+                                                value={editingField.label}
+                                                onChange={e => setEditingField({ ...editingField, label: e.target.value, name: e.target.value.toLowerCase().replace(/\s/g, '-') })}
                                                 className="w-full p-2 border rounded"
                                             />
-                                            <Button variant="ghost" size="icon" onClick={() => removeOption(index)}>
-                                                <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
                                         </div>
-                                    ))}
-                                </div>
-                                <Button variant="outline" size="sm" className="mt-2" onClick={addOption}>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Option
-                                </Button>
-                            </div>
-                        )}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                            <select
+                                                value={editingField.type}
+                                                onChange={e => setEditingField({ ...editingField, type: e.target.value })}
+                                                className="w-full p-2 border rounded"
+                                            >
+                                                <option value="text">Text</option>
+                                                <option value="select">Dropdown</option>
+                                                <option value="textarea">Text Area</option>
+                                            </select>
+                                        </div>
 
-                        <div className="flex justify-end gap-2 mt-4">
-                            <Button onClick={() => setEditingField(null)} variant="ghost">Cancel</Button>
-                            <Button onClick={handleUpdateField}>Update Field</Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <span className="font-medium">{field.label}</span>
-                            <span className="text-sm text-gray-500 ml-2">({field.type})</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <Button onClick={() => handleEditField(field)} size="sm" variant="outline"><Pencil className="mr-2 h-4 w-4" />Edit</Button>
-                            <Button onClick={() => handleDeleteField(field.id)} size="sm" variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</Button>
-                        </div>
-                    </div>
+                                        {editingField.type === 'select' && (
+                                            <div>
+                                                <h5 className="font-semibold mt-4 mb-2">Options</h5>
+                                                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                                    {editingField.options?.map((option, index) => (
+                                                        <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Option Label"
+                                                                value={option}
+                                                                onChange={(e) => handleOptionChange(index, e.target.value)}
+                                                                className="w-full p-2 border rounded"
+                                                            />
+                                                            <Button variant="ghost" size="icon" onClick={() => removeOption(index)}>
+                                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <Button variant="outline" size="sm" className="mt-2" onClick={addOption}>
+                                                    <Plus className="mr-2 h-4 w-4" />
+                                                    Add Option
+                                                </Button>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                            </div>
+                                            <div className="mt-auto flex justify-end gap-4">
+                                                <Button onClick={() => setEditingField(null)} variant="ghost">Cancel</Button>
+                                                <Button onClick={handleUpdateField}>Update Field</Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                  <div className="flex-grow flex w-full items-center justify-between">
+                                    <div>
+                                      <span className="font-medium">{field.label}</span>
+                                      <span className="text-sm text-gray-500 ml-2">({field.type})</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button onClick={() => handleEditField(field)} size="sm" variant="outline"><Pencil className="mr-2 h-4 w-4" />Edit</Button>
+                                      <Button onClick={() => handleDeleteField(field.id)} size="sm" variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</Button>
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
                 )}
-                </div>
-            ))}
-            </div>
+              </Droppable>
+            </DragDropContext>
         </div>
 
         <div className="flex-1 border-t pt-6 mt-6 md:border-t-0 md:pt-0 md:mt-0 md:border-l md:pl-8 flex flex-col">
@@ -283,7 +319,7 @@ const FormEditor = () => {
                                 <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                         </div>
-                    )) }
+                    ))}
                     </div>
                     <Button
                         variant="outline"

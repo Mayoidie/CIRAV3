@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Send } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
 import { db, auth } from '../../lib/firebase';
-import { addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface TicketFormProps {
@@ -30,22 +31,23 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
   const [hoveredUpload, setHoveredUpload] = useState(false);
 
   useEffect(() => {
-    const fetchFormStructure = async () => {
-        const formFieldsCollection = collection(db, 'form-structure');
-        const querySnapshot = await getDocs(formFieldsCollection);
-        const fields = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            // Backward compatibility for object-based options
-            if (data.type === 'select' && data.options && data.options.length > 0 && typeof data.options[0] === 'object') {
-                data.options = data.options.map((opt: any) => opt.label);
-            }
-            return { id: doc.id, ...data } as FormField;
-        });
-        setFormFields(fields);
-        const initialFormData = fields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {});
-        setFormData(initialFormData);
-    };
-    fetchFormStructure();
+    const formFieldsCollection = collection(db, 'form-structure');
+    const q = query(formFieldsCollection, orderBy('order'));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fields = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        if (data.type === 'select' && data.options && data.options.length > 0 && typeof data.options[0] === 'object') {
+          data.options = data.options.map((opt: any) => opt.label);
+        }
+        return { id: doc.id, ...data } as FormField;
+      });
+      setFormFields(fields);
+      const initialFormData = fields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {});
+      setFormData(initialFormData);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const processImage = async (imageFile: File): Promise<File> => {
