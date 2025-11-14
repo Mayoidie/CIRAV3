@@ -32,6 +32,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management' | 'form-editor'>('tickets'); // Add 'form-editor' to the type
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [searchValue, setSearchValue] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
   const [resolutionNote, setResolutionNote] = useState<{ [key: string]: string }>({});
   const [showRejectionNote, setShowRejectionNote] = useState<{ [key: string]: boolean }>({});
@@ -153,13 +155,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
     await handleStatusUpdate(ticketId, 'resolved', note);
   };
 
+  const getUniqueValues = (field: keyof TicketType) => {
+    if (field === 'approvedAt') {
+        return [
+            ...new Set(
+                tickets
+                    .map(ticket => ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : null)
+                    .filter(date => date !== null) as string[]
+            ),
+        ];
+    }
+    return [...new Set(tickets.map(ticket => ticket[field]))];
+  };
+
   const filteredTickets = tickets
     .filter(t => reviewFilter === 'all' || t.status === reviewFilter)
-    .filter(ticket => 
-      ticket.issueDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.classroom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.issueType.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    .filter(ticket => {
+        if (searchField === 'all' || !searchValue) return true;
+        const fieldValue = ticket[searchField as keyof TicketType];
+        if (searchField === 'approvedAt' && fieldValue instanceof Date) {
+            return fieldValue.toLocaleDateString() === searchValue;
+        }
+        return String(fieldValue).toLowerCase() === searchValue.toLowerCase();
+    });
 
   const pendingTickets = tickets.filter(t => t.status === 'pending');
   const approvedTickets = tickets.filter(t => t.status === 'approved');
@@ -282,9 +300,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
               }
             </div>
 
-            <div className="mb-6 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tickets..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all" />
+            <div className="mb-6 flex gap-4">
+                <select value={searchField} onChange={(e) => {setSearchField(e.target.value); setSearchValue('');}} className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all">
+                    <option value="all">All Fields</option>
+                    <option value="id">Ticket ID</option>
+                    <option value="issueType">Issue Type</option>
+                    <option value="unitId">Unit ID</option>
+                    <option value="classroom">Classroom</option>
+                    <option value="approvedAt">Date Approved</option>
+                    <option value="status">Status</option>
+                </select>
+                {searchField !== 'all' && (
+                    <select value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all">
+                        <option value="">Select a value</option>
+                        {getUniqueValues(searchField as keyof TicketType).map(value => (
+                            <option key={value} value={value}>{value}</option>
+                        ))}
+                    </select>
+                )}
             </div>
 
             {filteredTickets.length === 0 ? (

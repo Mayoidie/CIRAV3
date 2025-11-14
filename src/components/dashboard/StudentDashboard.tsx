@@ -28,6 +28,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [activeTab, setActiveTab] = useState<'tickets' | 'report' | 'settings'>('tickets');
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [searchField, setSearchField] = useState('all');
+  const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
     if (logoClickTime > 0) {
@@ -55,7 +57,29 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
     }
   }, [auth.currentUser]);
 
-  const filteredTickets = tickets.filter(t => filter === 'all' || t.status === filter);
+  const getUniqueValues = (field: keyof TicketType) => {
+    if (field === 'approvedAt') {
+        return [
+            ...new Set(
+                tickets
+                    .map(ticket => ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : null)
+                    .filter(date => date !== null) as string[]
+            ),
+        ];
+    }
+    return [...new Set(tickets.map(ticket => ticket[field]))];
+  };
+
+  const filteredTickets = tickets
+    .filter(t => filter === 'all' || t.status === filter)
+    .filter(ticket => {
+        if (searchField === 'all' || !searchValue) return true;
+        const fieldValue = ticket[searchField as keyof TicketType];
+        if (searchField === 'approvedAt' && ticket.approvedAt) {
+             return ticket.approvedAt.toDate().toLocaleDateString() === searchValue;
+        }
+        return String(fieldValue).toLowerCase() === searchValue.toLowerCase();
+    });
   
   const pendingTickets = tickets.filter(t => t.status === 'pending');
   const approvedTickets = tickets.filter(t => t.status === 'approved');
@@ -139,6 +163,26 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                 <button onClick={() => setFilter('in-progress')} style={{backgroundColor: filter === 'in-progress' ? '#3942A7' : 'white', color: filter === 'in-progress' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>In Progress ({inProgressTickets.length})</button>
                 <button onClick={() => setFilter('resolved')} style={{backgroundColor: filter === 'resolved' ? '#1DB954' : 'white', color: filter === 'resolved' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Resolved ({resolvedTickets.length})</button>
                 <button onClick={() => setFilter('rejected')} style={{backgroundColor: filter === 'rejected' ? '#FF4D4F' : 'white', color: filter === 'rejected' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Rejected ({rejectedTickets.length})</button>
+            </div>
+
+            <div className="mb-6 flex gap-4">
+                <select value={searchField} onChange={(e) => {setSearchField(e.target.value); setSearchValue('');}} className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all">
+                    <option value="all">All Fields</option>
+                    <option value="id">Ticket ID</option>
+                    <option value="issueType">Issue Type</option>
+                    <option value="unitId">Unit ID</option>
+                    <option value="classroom">Classroom</option>
+                    <option value="approvedAt">Date Approved</option>
+                    <option value="status">Status</option>
+                </select>
+                {searchField !== 'all' && (
+                    <select value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all">
+                        <option value="">Select a value</option>
+                        {getUniqueValues(searchField as keyof TicketType).map(value => (
+                            <option key={value} value={value}>{value}</option>
+                        ))}
+                    </select>
+                )}
             </div>
 
             {filteredTickets.length === 0 ? (
