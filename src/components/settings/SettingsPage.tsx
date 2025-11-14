@@ -197,6 +197,7 @@ export const SettingsPage: React.FC = () => {
               <input
                 type={showPasswords.current ? 'text' : 'password'}
                 value={passwords.current}
+                autoComplete="current-password"
                 onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
                 className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
                 placeholder="Enter current password"
@@ -217,6 +218,7 @@ export const SettingsPage: React.FC = () => {
               <input
                 type={showPasswords.new ? 'text' : 'password'}
                 value={passwords.new}
+                autoComplete="new-password"
                 onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
                 className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
                 placeholder="Enter new password"
@@ -237,6 +239,7 @@ export const SettingsPage: React.FC = () => {
               <input
                 type={showPasswords.confirm ? 'text' : 'password'}
                 value={passwords.confirm}
+                autoComplete="new-password"
                 onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
                 className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
                 placeholder="Confirm new password"

@@ -202,11 +202,11 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
         setErrors(prev => ({ ...prev, email: 'This email is already in use.' }));
         showToast('This email is already in use.', 'error');
       } else {
-        console.error("Detailed Signup Error:", error);
         showToast('Failed to create account. Please try again.', 'error');
       }
     } finally {
       setIsLoading(false);
+      setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
     }
   };
 
@@ -276,6 +276,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     ref={emailInputRef}
                     type="text"
                     name="email"
+                    autoComplete="email"
                     value={formData.email}
                     onChange={handleInputChange}
                     onFocus={handleEmailFocus}
@@ -331,6 +332,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="password"
+                      autoComplete="new-password"
                       value={formData.password}
                       onChange={handleInputChange}
                       onFocus={() => setIsPasswordFocused(true)}
@@ -353,6 +355,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
                     <input
                      type={showConfirmPassword ? 'text' : 'password'}
                       name="confirmPassword"
+                      autoComplete="new-password"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       onBlur={handleBlur}

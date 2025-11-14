@@ -144,6 +144,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
       setErrors({ email: 'Invalid email or password', password: ' ' });
     } finally {
       setIsLoading(false);
+      setFormData(prev => ({ ...prev, password: '' }));
     }
   };
 
@@ -209,6 +210,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                         ref={emailInputRef}
                         type="text"
                         name="email"
+                        autoComplete="email"
                         value={formData.email}
                         onChange={handleInputChange}
                         onFocus={handleEmailFocus}
@@ -229,6 +231,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                       <input
                         type={showPassword ? 'text' : 'password'}
                         name="password"
+                        autoComplete="current-password"
                         value={formData.password}
                         onChange={handleInputChange}
                         onBlur={handleBlur}
