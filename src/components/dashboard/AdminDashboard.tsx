@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Search, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle, Users, Check, X, Pencil } from 'lucide-react';
+import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Search, ClipboardList, Trash2, XCircle, Settings as SettingsIcon, PlayCircle, Users, Check, X, Pencil, Edit } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '../ui/toast-container';
 import { SettingsPage } from '../settings/SettingsPage';
 import { UserManagement } from './UserManagement';
+import FormEditor from './FormEditor'; // Import the new component
 import { Button } from '../ui/button';
 
 interface TicketType {
@@ -28,7 +29,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management' | 'form-editor'>('tickets'); // Add 'form-editor' to the type
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
@@ -177,6 +178,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const tabs = [
     { id: 'tickets', label: 'Tickets', icon: ClipboardList },
     { id: 'user-management', label: 'User Management', icon: Users },
+    { id: 'form-editor', label: 'Form Editor', icon: Edit }, // Add the new tab
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -188,7 +190,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="text-[#1E1E1E] mb-2">Admin Dashboard</h1>
-        <p className="text-[#7A7A7A]">Manage tickets and users</p>
+        <p className="text-[#7A7A7A]">Manage tickets, users, and forms</p>
       </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
@@ -377,6 +379,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
         {activeTab === 'user-management' && (
           <motion.div key="user-management" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <UserManagement />
+          </motion.div>
+        )}
+
+        {activeTab === 'form-editor' && (
+          <motion.div key="form-editor" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+            <FormEditor />
           </motion.div>
         )}
 

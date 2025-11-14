@@ -1,42 +1,127 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Send } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
-import { CLASSROOM_DATA, ISSUE_TYPES } from '../../lib/issueTypes'; // Updated import
 import { db, auth } from '../../lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface TicketFormProps {
   onSuccess: () => void;
 }
 
+interface OptionSet {
+  options: string[];
+  condition?: {
+    field: string;
+    value: string;
+  };
+}
+
+interface FormField {
+  id: string;
+  label: string;
+  type: 'text' | 'select' | 'textarea';
+  name: string;
+  options?: string[]; // Kept for backwards compatibility
+  optionSets?: OptionSet[];
+  conditional?: {
+    field: string;
+    value: string;
+  };
+}
+
 export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
-  const [formData, setFormData] = useState({
-    classroom: '',
-    unitId: '',
-    issueType: '',
-    issueSubtype: '',
-    issueDescription: '',
-  });
+  const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false); 
-  const [isImageProcessing, setIsImageProcessing] = useState(false); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
-  const [hoveredUpload, setHoveredUpload] = useState(false); 
+  const [hoveredUpload, setHoveredUpload] = useState(false);
+
+  useEffect(() => {
+    const formFieldsCollection = collection(db, 'form-structure');
+    const q = query(formFieldsCollection, orderBy('order'));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const newFields = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormField));
+        setFormFields(newFields);
+
+        // Preserve existing form data when the form structure changes
+        setFormData(currentData => {
+            const newFormData = newFields.reduce((acc, field) => ({ ...acc, [field.name]: currentData[field.name] || '' }), {});
+            return newFormData;
+        });
+    });
+
+    return () => unsubscribe();
+}, []);
+
+  const isFieldVisible = (field: FormField, data: Record<string, string>): boolean => {
+    if (field.conditional && field.conditional.field && field.conditional.value) {
+        const controllingField = formFields.find(f => f.id === field.conditional.field);
+        if (!controllingField) return false;
+
+        const controllingFieldValue = data[controllingField.name];
+
+        if (field.conditional.value === 'any') {
+            if (!controllingFieldValue) return false;
+        } else {
+            if (controllingFieldValue !== field.conditional.value) return false;
+        }
+
+        // Recursively check if the controlling field itself is visible
+        return isFieldVisible(controllingField, data);
+    }
+    return true;
+  };
+
+  const getOptionsForField = (field: FormField, data: Record<string, string>): string[] => {
+    if (field.type !== 'select') {
+        return [];
+    }
+
+    if (field.optionSets && field.optionSets.length > 0) {
+        const defaultSet = field.optionSets.find(set => !set.condition);
+        let options = defaultSet ? [...defaultSet.options] : [];
+
+        const conditionalSets = field.optionSets.filter(set => {
+            if (!set.condition || !set.condition.field || !set.condition.value) return false;
+            const controllingField = formFields.find(f => f.id === set.condition.field);
+            if (!controllingField) return false;
+
+            const controllingFieldValue = data[controllingField.name];
+            if (set.condition.value === 'any') {
+                return !!controllingFieldValue;
+            } else {
+                return controllingFieldValue === set.condition.value;
+            }
+        });
+
+        if (conditionalSets.length > 0) {
+            const conditionalOptions = conditionalSets.flatMap(set => set.options);
+            options = [...options, ...conditionalOptions];
+        }
+        
+        return [...new Set(options)]; // Return unique options
+    }
+
+    return field.options || [];
+}
 
   const processImage = async (imageFile: File): Promise<File> => {
     console.log('Processing image:', imageFile.name);
     await new Promise(resolve => setTimeout(resolve, 500));
-    return imageFile; 
+    return imageFile;
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setIsImageProcessing(true); 
+      setIsImageProcessing(true);
       try {
         const processedFile = await processImage(file);
         setImageFile(processedFile);
@@ -47,7 +132,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         reader.readAsDataURL(processedFile);
       } catch (error) {
         console.error('Error processing image:', error);
-        showToast('Failed to process image.', 'error');
+        showToast('Failed to process image', 'error');
         setImageFile(null);
         setImagePreview('');
       } finally {
@@ -58,23 +143,59 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prevData) => {
-      const newData = { ...prevData, [name]: value };
-      if (name === 'classroom') {
-        newData.unitId = ''; 
-      }
-      return newData;
+
+    setFormData(currentData => {
+        // Start with the user's direct change
+        const newData = { ...currentData, [name]: value };
+
+        // Recursively clean the data to handle cascading changes.
+        // 1. If a field becomes hidden, its value is cleared.
+        // 2. If a dropdown's selected value is no longer in its list of available options, it's cleared.
+        const cleanData = (data: Record<string, string>): Record<string, string> => {
+            let changed = false;
+            const cleanedData = { ...data };
+
+            formFields.forEach(field => {
+                const isVisible = isFieldVisible(field, cleanedData);
+                
+                // If field is not visible and has a value, clear it.
+                if (!isVisible && cleanedData[field.name]) {
+                    cleanedData[field.name] = '';
+                    changed = true;
+                }
+
+                // If field is a visible dropdown, check if its value is still valid.
+                if (isVisible && field.type === 'select') {
+                    const options = getOptionsForField(field, cleanedData);
+                    if (cleanedData[field.name] && !options.includes(cleanedData[field.name])) {
+                        cleanedData[field.name] = '';
+                        changed = true;
+                    }
+                }
+            });
+
+            // If a value was cleared, run the cleaning process again
+            // to ensure any fields that depended on the cleared value are also updated.
+            if (changed) {
+                return cleanData(cleanedData);
+            }
+            
+            return cleanedData;
+        };
+
+        return cleanData(newData);
     });
-    setErrors((prevErrors) => ({ ...prevErrors, [name]: false }));
+
+    setErrors(prev => ({ ...prev, [name]: false }));
   };
 
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {};
-
-    if (!formData.classroom) newErrors.classroom = true;
-    if (formData.issueType !== 'other' && !formData.unitId) newErrors.unitId = true; 
-    if (!formData.issueType) newErrors.issueType = true;
-    if (!formData.issueDescription) newErrors.issueDescription = true;
+    formFields.forEach(field => {
+      if (isFieldVisible(field, formData) && !formData[field.name]) {
+        newErrors[field.name] = true;
+      }
+    });
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -103,32 +224,25 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
     try {
       let imageUrl = '';
       if (imageFile) {
-        console.log('Attempting to upload image...');
         const storage = getStorage();
         const storageRef = ref(storage, `tickets/${user.uid}/${Date.now()}_${imageFile.name}`);
-        try {
-          const snapshot = await uploadBytes(storageRef, imageFile);
-          console.log('Image uploaded successfully:', snapshot);
-          imageUrl = await getDownloadURL(snapshot.ref);
-          console.log('Image download URL:', imageUrl);
-        } catch (imageUploadError) {
-          console.error('Error during image upload or getting download URL:', imageUploadError);
-          showToast('Failed to upload image. Please try again.', 'error');
-          setIsLoading(false);
-          return; 
-        }
+        const snapshot = await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
       }
 
       const currentUserData = JSON.parse(localStorage.getItem('currentUser') || '{}');
       const status = currentUserData.role === 'class-representative' ? 'approved' : 'pending';
 
+      const submissionData: Record<string, any> = {};
+      formFields
+        .filter(field => isFieldVisible(field, formData))
+        .forEach(field => {
+          submissionData[field.name] = formData[field.name];
+        });
+
       await addDoc(collection(db, 'tickets'), {
         userId: user.uid,
-        classroom: formData.classroom,
-        unitId: formData.unitId,
-        issueType: formData.issueType,
-        issueSubtype: formData.issueSubtype,
-        issueDescription: formData.issueDescription,
+        ...submissionData,
         imageUrl,
         status,
         createdAt: serverTimestamp(),
@@ -141,138 +255,66 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         'success'
       );
 
-      setFormData({
-        classroom: '',
-        unitId: '',
-        issueType: '',
-        issueSubtype: '',
-        issueDescription: '',
-      });
+      const initialFormData = formFields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {});
+      setFormData(initialFormData);
       setImageFile(null);
       setImagePreview('');
       onSuccess();
     } catch (error) {
-      console.error('Error submitting ticket (Firestore part):', error);
+      console.error('Error submitting ticket:', error);
       showToast('Failed to submit ticket', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const selectedIssueType = formData.issueType ? ISSUE_TYPES[formData.issueType as keyof typeof ISSUE_TYPES] : null;
-  const selectedClassroomData = formData.classroom ? CLASSROOM_DATA[formData.classroom as keyof typeof CLASSROOM_DATA] : null;
-  const unitIdOptions = selectedClassroomData
-    ? Array.from({ length: selectedClassroomData.unitRange[1] - selectedClassroomData.unitRange[0] + 1 }, (_, i) => {
-        const unitNumber = selectedClassroomData.unitRange[0] + i;
-        return `${selectedClassroomData.unitPrefix}${unitNumber < 10 ? `0${unitNumber}` : unitNumber}`;
-      })
-    : [];
+  const renderField = (field: FormField) => {
+    const { id, label, type, name } = field;
+    const commonProps = {
+      name,
+      value: formData[name] || '',
+      onChange: handleChange,
+      className: `w-full px-4 py-3 border ${errors[name] ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`,
+    };
 
-  const isUnitIdRequired = formData.issueType !== 'other';
+    const options = getOptionsForField(field, formData);
+
+    return (
+      <motion.div 
+        key={id}
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.2 }}
+      >
+        <label className="block text-[#1E1E1E] mb-2">
+          {label} <span className="text-[#FF4D4F]">*</span>
+        </label>
+        {type === 'text' && <input type="text" {...commonProps} />}
+        {type === 'textarea' && <textarea rows={4} {...commonProps} />}
+        {type === 'select' && (
+          <select {...commonProps}>
+            <option value="">Select {label}</option>
+            {options.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        )}
+      </motion.div>
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl shadow-md p-6">
-      <h3 className="text-[#1E1E1E]">Report an Issue</h3>
+      <h3 className="text-[#1E1E1E]">Update Issue</h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-[#1E1E1E] mb-2">
-            Classroom <span className="text-[#FF4D4F]">*</span>
-          </label>
-          <select
-            value={formData.classroom}
-            onChange={handleChange}
-            name="classroom"
-            className={`w-full px-4 py-3 border ${errors.classroom ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-          >
-            <option value="">Select Classroom</option>
-            {Object.entries(CLASSROOM_DATA).map(([key, value]) => (
-              <option key={key} value={key}>
-                {value.label}
-              </option>
-            ))}
-          </select>
+      <AnimatePresence>
+        <div className="grid grid-cols-1 gap-6">
+          {formFields.filter(field => isFieldVisible(field, formData)).map(renderField)}
         </div>
+      </AnimatePresence>
 
-        <div>
-          <label htmlFor="unitId" className="block text-[#1E1E1E] mb-2">
-            Unit ID {isUnitIdRequired && <span className="text-[#FF4D4F]">*</span>}
-          </label>
-          <select
-            id="unitId"
-            name="unitId"
-            value={formData.unitId}
-            onChange={handleChange}
-            className={`w-full p-3 border rounded-lg ${
-              errors.unitId ? 'border-[#FF4D4F]' : 'border-[#D1D5DB]'
-            } focus:ring focus:ring-blue-200 focus:border-blue-500`}
-            disabled={!formData.classroom && isUnitIdRequired} 
-          >
-            <option value="">{isUnitIdRequired ? 'Select Unit ID' : 'Select Unit ID (Optional)'}</option>
-            {unitIdOptions.map((unitId) => (
-              <option key={unitId} value={unitId}>
-                {unitId}
-              </option>
-            ))}
-          </select>
-          {errors.unitId && isUnitIdRequired && <p className="text-[#FF4D4F] text-sm mt-1">Unit ID is required.</p>}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-[#1E1E1E] mb-2">
-          Issue Type <span className="text-[#FF4D4F]">*</span>
-        </label>
-        <select
-          value={formData.issueType}
-          onChange={(e) => {
-            setFormData({ ...formData, issueType: e.target.value, issueSubtype: '' });
-            setErrors((prevErrors) => ({ ...prevErrors, issueType: false }));
-          }}
-          name="issueType"
-          className={`w-full px-4 py-3 border ${errors.issueType ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-        >
-          <option value="">Select Issue Type</option>
-          {Object.entries(ISSUE_TYPES).map(([key, value]) => (
-            <option key={key} value={key}>{value.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {selectedIssueType && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <label className="block text-[#1E1E1E] mb-2">Issue Subtype</label>
-          <select
-            value={formData.issueSubtype}
-            onChange={handleChange}
-            name="issueSubtype"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all"
-          >
-            <option value="">Select Subtype (Optional)</option>
-            {selectedIssueType.subtypes.map(subtype => (
-              <option key={subtype} value={subtype}>{subtype}</option>
-            ))}
-          </select>
-        </motion.div>
-      )}
-
-      <div>
-        <label className="block text-[#1E1E1E] mb-2">
-          Issue Description <span className="text-[#FF4D4F]">*</span>
-        </label>
-        <textarea
-          value={formData.issueDescription}
-          onChange={handleChange}
-          name="issueDescription"
-          rows={4}
-          className={`w-full px-4 py-3 border ${errors.issueDescription ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-          placeholder="Please describe the issue in detail..."
-        />
-      </div>
-
+      {/* Image Upload */}
       <div>
         <label className="block text-[#1E1E1E] mb-2">Upload Image (Optional)</label>
         <div
@@ -289,7 +331,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
             onChange={handleImageChange}
             className="hidden"
             id="image-upload"
-            disabled={isImageProcessing || isLoading} 
+            disabled={isImageProcessing || isLoading}
           />
           <label htmlFor="image-upload" className="cursor-pointer">
             {isImageProcessing ? (
@@ -316,6 +358,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         </div>
       </div>
 
+      {/* Submit Button */}
       <motion.button
         type="submit"
         disabled={isLoading || isImageProcessing}
@@ -328,7 +371,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         ) : (
           <>
             <Send className="w-5 h-5" />
-            <span>Submit Ticket</span>
+            <span>Update Ticket</span>
           </>
         )}
       </motion.button>
