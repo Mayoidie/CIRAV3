@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Mail, Lock, LogIn, Send, AlertTriangle } from 'lucide-react';
+import { Mail, Lock, LogIn, Send, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { auth, db } from '../../lib/firebase';
@@ -19,6 +19,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showUnverifiedEmailMessage, setShowUnverifiedEmailMessage] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { showToast } = useToast();
   const emailInputRef = useRef<HTMLInputElement>(null);
 
@@ -202,8 +203,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                     <label className="block text-[#1E1E1E] mb-2">
                       Email {errors.email && <span className="text-[#FF4D4F]">*</span>}
                     </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
+                    <div className={`flex items-center border rounded-lg ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#3942A7] transition-all px-3`}>
+                      <Mail className="w-5 h-5 text-[#7A7A7A] mr-3" />
                       <input
                         ref={emailInputRef}
                         type="text"
@@ -213,7 +214,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                         onFocus={handleEmailFocus}
                         onClick={handleEmailClick}
                         onBlur={handleEmailBlur}
-                        className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+                        className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
                         placeholder="your.email@plv.edu.ph"
                       />
                     </div>
@@ -223,17 +224,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                     <label className="block text-[#1E1E1E] mb-2">
                       Password {errors.password && <span className="text-[#FF4D4F]">*</span>}
                     </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
+                    <div className={`flex items-center border rounded-lg ${errors.password ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#3942A7] transition-all px-3`}>
+                      <Lock className="w-5 h-5 text-[#7A7A7A] mr-3" />
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         name="password"
                         value={formData.password}
                         onChange={handleInputChange}
                         onBlur={handleBlur}
-                        className={`w-full pl-10 pr-4 py-3 border ${errors.password ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+                        className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
                         placeholder="••••••••"
                       />
+                      <div className="cursor-pointer" onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <EyeOff className="w-5 h-5 text-[#7A7A7A]" /> : <Eye className="w-5 h-5 text-[#7A7A7A]" />}
+                      </div>
                     </div>
                     {errors.password && <p className="text-[#FF4D4F] text-sm mt-1">{errors.password}</p>}
                   </div>
