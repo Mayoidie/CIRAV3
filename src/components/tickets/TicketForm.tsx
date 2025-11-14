@@ -371,7 +371,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
         ) : (
           <>
             <Send className="w-5 h-5" />
-            <span>Update Ticket</span>
+            <span>Submit Ticket</span>
           </>
         )}
       </motion.button>
