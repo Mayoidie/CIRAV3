@@ -413,10 +413,13 @@ const FormEditor = () => {
                                                 )}
                                             </div>
                                         </div>
-
-                                        <div className="flex justify-end gap-2 mt-4">
-                                            <Button onClick={() => setEditingField(null)} variant="ghost">Cancel</Button>
-                                            <Button onClick={handleUpdateField}>Update Field</Button>
+                                        <div className="flex items-center justify-between p-3">
+                                          <div>
+                                          </div>
+                                          <div className="flex justify-end gap-2 mt-4">
+                                              <Button onClick={() => setEditingField(null)} variant="ghost">Cancel</Button>
+                                              <Button onClick={handleUpdateField}>Update Field</Button>
+                                          </div>
                                         </div>
                                     </div>
                                 ) : (
