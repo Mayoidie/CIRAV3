@@ -244,7 +244,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                     </div>
                     {errors.password && <p className="text-[#FF4D4F] text-sm mt-1">{errors.password}</p>}
                   </div>
-                  <button type="button" onClick={onNavigateToForgotPassword} className="text-[#3942A7] hover:underline transition-all">
+                  <button type="button" onClick={(e) => { e.preventDefault(); onNavigateToForgotPassword(); }} className="text-[#3942A7] hover:underline transition-all">
                     Forgot password?
                   </button>
                   <motion.button type="submit" disabled={isLoading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full bg-gradient-to-r from-[#3942A7] to-[#1B1F50] text-white py-3 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">

@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LoginPage } from './components/auth/LoginPage';
 import { SignupPage } from './components/auth/SignupPage';
 import { ForgotPasswordPage } from './components/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './components/auth/ResetPasswordPage';
 import { DashboardRouter } from './components/dashboard/DashboardRouter';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
@@ -18,7 +20,7 @@ interface User {
   [key: string]: any;
 }
 
-type Page = 'login' | 'signup' | 'forgot-password' | 'dashboard' | 'verification';
+type Page = 'login' | 'signup' | 'forgot-password' | 'dashboard' | 'verification' | 'reset-password';
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const IMPENDING_LOGOUT_WARNING_TIME = 10 * 1000; // 10 seconds before timeout
@@ -43,16 +45,14 @@ const AppContent: React.FC = () => {
     }
     if (logoutToastTimeoutId.current) {
       clearTimeout(logoutToastTimeoutId.current);
-      logoutToastTimeoutId.current = null; // Clear the impending logout toast timeout
+      logoutToastTimeoutId.current = null;
     }
 
     if (firebaseUser && firebaseUser.emailVerified && currentPage === 'dashboard') {
-      // Set a timer for the impending logout warning
       logoutToastTimeoutId.current = setTimeout(() => {
         showToast('You will be logged out in 10 seconds due to inactivity.', 'warning');
       }, INACTIVITY_TIMEOUT - IMPENDING_LOGOUT_WARNING_TIME);
 
-      // Set the main inactivity timer
       inactivityTimerRef.current = setTimeout(() => {
         handleLogout('inactivity');
       }, INACTIVITY_TIMEOUT);
@@ -76,12 +76,10 @@ const AppContent: React.FC = () => {
               const userData = { id: user.uid, ...doc.data() } as User;
               setCurrentUser(userData);
               setCurrentPage('dashboard');
-              resetInactivityTimer(); // Start timer when user logs in and is verified
+              resetInactivityTimer();
             } else {
               setCurrentUser(null);
-              if (currentPage !== 'signup') setCurrentPage('login');
-              if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-              if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
+              setCurrentPage('login');
             }
             setIsLoading(false);
           });
@@ -90,15 +88,20 @@ const AppContent: React.FC = () => {
           setCurrentUser(null);
           setCurrentPage('verification');
           setIsLoading(false);
-          if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-          if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
         }
       } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+        const oobCode = urlParams.get('oobCode');
+
+        if (mode === 'resetPassword' && oobCode) {
+          setCurrentPage('reset-password');
+        } else if (!['login', 'signup', 'forgot-password', 'reset-password'].includes(currentPage)) {
+          setCurrentPage('login');
+        }
+        
         setCurrentUser(null);
-        if (currentPage !== 'signup') setCurrentPage('login');
         setIsLoading(false);
-        if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-        if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
       }
     });
 
@@ -107,7 +110,7 @@ const AppContent: React.FC = () => {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
       if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
     };
-  }, [resetInactivityTimer, currentPage]);
+  }, [currentPage, resetInactivityTimer]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout | undefined;
@@ -132,8 +135,6 @@ const AppContent: React.FC = () => {
       document.removeEventListener('mousemove', handleActivity);
       document.removeEventListener('keydown', handleActivity);
       document.removeEventListener('click', handleActivity);
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
     }
 
     return () => {
@@ -144,14 +145,8 @@ const AppContent: React.FC = () => {
   }, [firebaseUser, currentPage, handleActivity]);
 
   const handleLogout = (reason?: 'inactivity') => {
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
-    }
-    if (logoutToastTimeoutId.current) {
-      clearTimeout(logoutToastTimeoutId.current);
-      logoutToastTimeoutId.current = null;
-    }
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    if (logoutToastTimeoutId.current) clearTimeout(logoutToastTimeoutId.current);
 
     signOut(auth).then(() => {
       setCurrentUser(null);
@@ -171,29 +166,19 @@ const AppContent: React.FC = () => {
       sendEmailVerification(firebaseUser)
         .then(() => {
           showToast('A new verification email has been sent to your address.', 'success');
-          setCooldown(180); // 3 minutes
+          setCooldown(180);
         })
         .catch((error) => {
-          if (error.code === 'auth/too-many-requests') {
-            showToast('Too many requests. Please wait before trying again.', 'error');
-          } else {
-            console.error("Resend verification error:", error);
-            showToast('Failed to send verification email. Please try again.', 'error');
-          }
+          showToast(error.code === 'auth/too-many-requests' 
+            ? 'Too many requests. Please wait before trying again.' 
+            : 'Failed to send verification email. Please try again.', 'error');
         })
-        .finally(() => {
-          setIsResending(false);
-        });
+        .finally(() => setIsResending(false));
     }
   };
   
-    const handleLogoClick = () => {
-    setLogoClickTime(Date.now());
-  };
-
-  const handleProfileClick = () => {
-    setProfileClickTime(Date.now());
-  };
+  const handleLogoClick = () => setLogoClickTime(Date.now());
+  const handleProfileClick = () => setProfileClickTime(Date.now());
 
   if (isLoading) {
     return (
@@ -207,64 +192,44 @@ const AppContent: React.FC = () => {
     );
   }
 
+  const pageContent = () => {
+    switch (currentPage) {
+      case 'login':
+        return <LoginPage onLogin={() => {}} onNavigateToSignup={() => setCurrentPage('signup')} onNavigateToForgotPassword={() => setCurrentPage('forgot-password')} />;
+      case 'signup':
+        return <SignupPage onSignupSuccess={() => setCurrentPage('verification')} onNavigateToLogin={() => setCurrentPage('login')} />;
+      case 'verification':
+        return firebaseUser && <VerificationPage email={firebaseUser.email || ''} onResendVerification={handleResendVerification} onReturnToLogin={() => { signOut(auth); setCurrentPage('login'); }} isResending={isResending} cooldown={cooldown} />;
+      case 'forgot-password':
+        return <ForgotPasswordPage onNavigateToLogin={() => setCurrentPage('login')} />;
+      case 'reset-password':
+        return <ResetPasswordPage onNavigateToLogin={() => setCurrentPage('login')} />;
+      case 'dashboard':
+        return currentUser && (
+          <>
+            <Navbar user={currentUser} onLogout={handleLogout} onLogoClick={handleLogoClick} onProfileClick={handleProfileClick} />
+            <main className="flex-1 bg-[#F9FAFB]">
+              <DashboardRouter user={currentUser} logoClickTime={logoClickTime} profileClickTime={profileClickTime} />
+            </main>
+            <Footer />
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
-      {currentPage === 'login' && (
-        <LoginPage
-          onLogin={() => { /* onAuthStateChanged handles navigation */ }}
-          onNavigateToSignup={() => setCurrentPage('signup')}
-          onNavigateToForgotPassword={() => setCurrentPage('forgot-password')}
-        />
-      )}
-
-      {currentPage === 'signup' && (
-        <SignupPage
-          onSignupSuccess={(email) => {
-            if (auth.currentUser) {
-              setFirebaseUser(auth.currentUser);
-            }
-            setCurrentPage('verification');
-          }}
-          onNavigateToLogin={() => setCurrentPage('login')}
-        />
-      )}
-
-      {currentPage === 'verification' && firebaseUser && (
-        <VerificationPage
-          email={firebaseUser.email || ''}
-          onResendVerification={handleResendVerification}
-          onReturnToLogin={() => {
-            signOut(auth);
-            setCurrentPage('login');
-          }}
-          isResending={isResending}
-          cooldown={cooldown}
-        />
-      )}
-
-      {currentPage === 'forgot-password' && (
-        <ForgotPasswordPage onNavigateToLogin={() => setCurrentPage('login')} />
-      )}
-
-      {currentPage === 'dashboard' && currentUser && (
-        <>
-          <Navbar user={currentUser} onLogout={handleLogout} onLogoClick={handleLogoClick} onProfileClick={handleProfileClick} />
-          <main className="flex-1 bg-[#F9FAFB]">
-            <DashboardRouter user={currentUser} logoClickTime={logoClickTime} profileClickTime={profileClickTime} />
-          </main>
-          <Footer />
-        </>
-      )}
+      {pageContent()}
     </div>
   );
 };
 
-const App: React.FC = () => {
-  return (
-    <ToastProvider>
-      <AppContent />
-    </ToastProvider>
-  );
-};
+const App: React.FC = () => (
+  <ToastProvider>
+    <AppContent />
+  </ToastProvider>
+);
 
 export default App;
