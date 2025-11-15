@@ -53,6 +53,7 @@
       "devDependencies": {
             "@types/node": "^20.10.0",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "terser": "^5.44.1",
             "vite": "^5.0.0"
       },
       "scripts": {
