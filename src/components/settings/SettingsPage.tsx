@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { User, Mail, IdCard, Lock, Save } from 'lucide-react';
+import { User, Mail, IdCard, Lock, Save, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
 import { auth } from '../../lib/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -11,6 +11,11 @@ export const SettingsPage: React.FC = () => {
     current: '',
     new: '',
     confirm: '',
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -98,6 +103,13 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
+    setShowPasswords(prevState => ({
+      ...prevState,
+      [field]: !prevState[field]
+    }));
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Profile Information */}
@@ -180,13 +192,20 @@ export const SettingsPage: React.FC = () => {
               <Lock className="w-4 h-4" />
               Current Password <span className="text-[#FF4D4F]">*</span>
             </label>
-            <input
-              type="password"
-              value={passwords.current}
-              onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-              className={`w-full px-4 py-3 border ${errors.current ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-              placeholder="Enter current password"
-            />
+            <div className={`flex items-center border rounded-lg ${errors.current ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#3942A7] transition-all px-3`}>
+              <Lock className="w-5 h-5 text-[#7A7A7A] mr-3" />
+              <input
+                type={showPasswords.current ? 'text' : 'password'}
+                value={passwords.current}
+                autoComplete="current-password"
+                onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
+                placeholder="Enter current password"
+              />
+              <div className="cursor-pointer" onClick={() => togglePasswordVisibility('current')}>
+                {showPasswords.current ? <EyeOff className="w-5 h-5 text-[#7A7A7A]" /> : <Eye className="w-5 h-5 text-[#7A7A7A]" />}
+              </div>
+            </div>
           </div>
 
           <div>
@@ -194,13 +213,20 @@ export const SettingsPage: React.FC = () => {
               <Lock className="w-4 h-4" />
               New Password <span className="text-[#FF4D4F]">*</span>
             </label>
-            <input
-              type="password"
-              value={passwords.new}
-              onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-              className={`w-full px-4 py-3 border ${errors.new ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-              placeholder="Enter new password"
-            />
+            <div className={`flex items-center border rounded-lg ${errors.new ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#3942A7] transition-all px-3`}>
+              <Lock className="w-5 h-5 text-[#7A7A7A] mr-3" />
+              <input
+                type={showPasswords.new ? 'text' : 'password'}
+                value={passwords.new}
+                autoComplete="new-password"
+                onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
+                placeholder="Enter new password"
+              />
+               <div className="cursor-pointer" onClick={() => togglePasswordVisibility('new')}>
+                {showPasswords.new ? <EyeOff className="w-5 h-5 text-[#7A7A7A]" /> : <Eye className="w-5 h-5 text-[#7A7A7A]" />}
+              </div>
+            </div>
           </div>
 
           <div>
@@ -208,13 +234,20 @@ export const SettingsPage: React.FC = () => {
               <Lock className="w-4 h-4" />
               Confirm New Password <span className="text-[#FF4D4F]">*</span>
             </label>
-            <input
-              type="password"
-              value={passwords.confirm}
-              onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-              className={`w-full px-4 py-3 border ${errors.confirm ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
-              placeholder="Confirm new password"
-            />
+            <div className={`flex items-center border rounded-lg ${errors.confirm ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#3942A7] transition-all px-3`}>
+              <Lock className="w-5 h-5 text-[#7A7A7A] mr-3" />
+              <input
+                type={showPasswords.confirm ? 'text' : 'password'}
+                value={passwords.confirm}
+                autoComplete="new-password"
+                onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
+                placeholder="Confirm new password"
+              />
+              <div className="cursor-pointer" onClick={() => togglePasswordVisibility('confirm')}>
+                {showPasswords.confirm ? <EyeOff className="w-5 h-5 text-[#7A7A7A]" /> : <Eye className="w-5 h-5 text-[#7A7A7A]" />}
+              </div>
+            </div>
           </div>
 
           <motion.button

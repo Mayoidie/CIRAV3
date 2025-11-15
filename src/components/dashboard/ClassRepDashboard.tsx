@@ -2,23 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Settings as SettingsIcon, Search, ClipboardList, XCircle, Check, X, Trash2 } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
 import { TicketForm } from '../tickets/TicketForm';
 import { SettingsPage } from '../settings/SettingsPage';
 import { useToast } from '../ui/toast-container';
 import { Button } from '../ui/button';
 
+interface FormField {
+  id: string;
+  label: string;
+  name: string;
+  type: 'text' | 'select' | 'textarea';
+  order: number;
+}
+
 interface TicketType {
   id: string;
-  classroom: string;
-  issueDescription: string;
-  issueType: string;
   status: 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
-  unitId?: string;
   approvedAt?: { toDate: () => Date };
+  [key: string]: any; // Allow dynamic properties
 }
 
 interface ClassRepDashboardProps {
@@ -28,6 +33,7 @@ interface ClassRepDashboardProps {
 
 export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
+  const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'review' | 'report' | 'settings'>('my-tickets');
   const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
@@ -60,6 +66,18 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
       setAllTickets(ticketsData);
     });
 
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const formFieldsCollection = query(collection(db, 'form-structure'), orderBy('order'));
+    const unsubscribe = onSnapshot(formFieldsCollection, (snapshot) => {
+      const fields = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormField));
+      const uniqueFields = fields.filter((field, index, self) => 
+        index === self.findIndex(f => f.name === field.name)
+      );
+      setFormFields(uniqueFields);
+    });
     return () => unsubscribe();
   }, []);
 
@@ -263,10 +281,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
             <div className="mb-6 flex gap-4">
                 <select value={searchField} onChange={(e) => {setSearchField(e.target.value); setSearchValue('');}} className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all">
                     <option value="all">All Fields</option>
-                    <option value="id">Ticket ID</option>
-                    <option value="issueType">Issue Type</option>
-                    <option value="unitId">Unit ID</option>
-                    <option value="classroom">Classroom</option>
+                    {formFields.map(field => (
+                        <option key={field.id} value={field.name}>{field.label}</option>
+                    ))}
                     <option value="approvedAt">Date Approved</option>
                     <option value="status">Status</option>
                 </select>
@@ -287,10 +304,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                 <table className="w-full text-sm">
                   <thead className="text-xs text-white uppercase" style={{backgroundColor: '#3942A7'}}>
                     <tr>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Ticket ID</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Issue Type</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Unit ID</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Classroom</div></th>
+                      {formFields.map(field => (
+                        <th key={field.id} scope="col" className="px-6 py-3"><div className="flex items-center justify-center">{field.label}</div></th>
+                      ))}
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Approved</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Notes</div></th>
@@ -299,10 +315,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                   <tbody>
                     {filteredMyTickets.map((ticket, index) => (
                       <tr key={ticket.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap"><div className="flex items-center justify-center">{ticket.id.slice(0, 8)}...</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.issueType}</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.unitId || 'N/A'}</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.classroom}</div></td>
+                        {formFields.map(field => (
+                            <td key={field.id} className="px-6 py-4"><div className="flex items-center justify-center">{ticket[field.name] || 'N/A'}</div></td>
+                        ))}
                         <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
                         <td className="px-6 py-4">
                             <div className="flex items-center justify-center">
@@ -376,10 +391,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
             <div className="mb-6 flex gap-4">
                 <select value={searchField} onChange={(e) => {setSearchField(e.target.value); setSearchValue('');}} className="border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all">
                     <option value="all">All Fields</option>
-                    <option value="id">Ticket ID</option>
-                    <option value="issueType">Issue Type</option>
-                    <option value="unitId">Unit ID</option>
-                    <option value="classroom">Classroom</option>
+                    {formFields.map(field => (
+                        <option key={field.id} value={field.name}>{field.label}</option>
+                    ))}
                     <option value="approvedAt">Date Approved</option>
                     <option value="status">Status</option>
                 </select>
@@ -400,10 +414,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                 <table className="w-full text-sm">
                   <thead className="text-xs text-white uppercase" style={{backgroundColor: '#3942A7'}}>
                     <tr>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Ticket ID</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Issue Type</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Unit ID</div></th>
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Classroom</div></th>
+                      {formFields.map(field => (
+                        <th key={field.id} scope="col" className="px-6 py-3"><div className="flex items-center justify-center">{field.label}</div></th>
+                      ))}
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Approved</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Actions</div></th>
@@ -412,10 +425,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                   <tbody>
                     {filteredReviewTickets.map((ticket, index) => (
                       <tr key={ticket.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap"><div className="flex items-center justify-center">{ticket.id.slice(0, 8)}...</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.issueType}</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.unitId || 'N/A'}</div></td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.classroom}</div></td>
+                        {formFields.map(field => (
+                            <td key={field.id} className="px-6 py-4"><div className="flex items-center justify-center">{ticket[field.name] || 'N/A'}</div></td>
+                        ))}
                         <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center">
