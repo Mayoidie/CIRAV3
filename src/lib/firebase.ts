@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAsOkziuS2XRQ3FifxPeRFbwDnsRgM4RF0",
   authDomain: "cira-db.firebaseapp.com",
   projectId: "cira-db",
-  storageBucket: "cira-db.firebasestorage.app", // Corrected bucket name
+  storageBucket: "cira-db.appspot.com", // Corrected bucket name
   messagingSenderId: "388474554775",
   appId: "1:388474554775:web:f6751b24b70412e4619cd2",
   measurementId: "G-Q8P7S0M855"

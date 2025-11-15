@@ -38,7 +38,11 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
 
     try {
       const auth = getAuth();
-      await sendPasswordResetEmail(auth, email);
+      const actionCodeSettings = {
+        url: `https://${auth.config.authDomain}`,
+        handleCodeInApp: true,
+      };
+      await sendPasswordResetEmail(auth, email, actionCodeSettings);
       showToast(`Password reset link sent to ${email}`, 'success');
       setTimeout(() => {
         onNavigateToLogin();
