@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Send, ArrowLeft } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
@@ -14,23 +14,89 @@ interface ForgotPasswordPageProps {
 export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigateToLogin }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({ email: false });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { showToast } = useToast();
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
+  const validateField = (name: string, value: string): string => {
+    switch (name) {
+      case 'email':
+        if (!value || value === '@plv.edu.ph') return 'Email is required';
+        if (!value.endsWith('@plv.edu.ph')) return 'Email must be a valid @plv.edu.ph address';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[name] = error;
+      } else {
+        delete newErrors[name];
+      }
+      return newErrors;
+    });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setEmail(value);
+    if (errors.email) {
+      const error = validateField('email', value);
+      if (!error) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.email;
+          return newErrors;
+        });
+      }
+    }
+  };
+
+  const handleEmailFocus = () => {
+    if (!email) {
+      setEmail('@plv.edu.ph');
+    }
+  };
+
+  const handleEmailClick = () => {
+    if (emailInputRef.current && email === '@plv.edu.ph') {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  };
+
+  useEffect(() => {
+    if (email === '@plv.edu.ph' && emailInputRef.current) {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  }, [email]);
+
+  const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    handleBlur(e);
+    const { value } = e.target;
+    if (value === '@plv.edu.ph') {
+      setEmail('');
+    } else if (value && !value.endsWith('@plv.edu.ph')) {
+      setEmail(value + '@plv.edu.ph');
+    }
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    setErrors({ email: false });
-
-    if (!email) {
-      setErrors({ email: true });
-      showToast('Please enter your email address', 'error');
-      return;
-    }
-
-    if (!email.endsWith('@plv.edu.ph')) {
-      setErrors({ email: true });
-      showToast('Please enter a valid @plv.edu.ph email address', 'error');
+    const emailError = validateField('email', email);
+    if (emailError) {
+      setErrors({ email: emailError });
+      showToast(emailError, 'error');
       return;
     }
 
@@ -73,13 +139,13 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-              className="w-20 h-20 bg-white rounded-full mx-auto mb-4 flex items-center justify-center"
+              className="w-20 h-20 mx-auto mb-4 flex items-center justify-center"
               style={{ width: '100px', height: '100px' }}
             >
               <ImageWithFallback
                 src={MainLogoWhite}
                 alt="CIRA"
-                className="w-full h-full object-cover rounded-full"
+                className="w-full h-full object-cover"
               />
             </motion.div>
             <p className="text-white/80">Reset your password</p>
@@ -93,17 +159,26 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
             
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-[#1E1E1E] mb-2">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
+                <label className="block text-[#1E1E1E] mb-2">
+                  Email {errors.email && <span className="text-[#FF4D4F]">*</span>}
+                </label>
+                <div className={`flex items-center border rounded-lg ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#3942A7] transition-all px-3`}>
+                  <Mail className="w-5 h-5 text-[#7A7A7A] mr-3" />
                   <input
-                    type="email"
+                    ref={emailInputRef}
+                    type="text"
+                    name="email"
+                    autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+                    onChange={handleInputChange}
+                    onFocus={handleEmailFocus}
+                    onClick={handleEmailClick}
+                    onBlur={handleEmailBlur}
+                    className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
                     placeholder="your.email@plv.edu.ph"
                   />
                 </div>
+                {errors.email && <p className="text-[#FF4D4F] text-sm mt-1">{errors.email}</p>}
               </div>
 
               <motion.button
