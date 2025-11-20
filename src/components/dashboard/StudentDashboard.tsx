@@ -50,6 +50,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
     }
   }, [profileClickTime]);
 
+
   useEffect(() => {
     if (auth.currentUser) {
       const q = query(collection(db, 'tickets'), where('userId', '==', auth.currentUser.uid));
@@ -114,7 +115,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
 
   const tabs = [
     { id: 'tickets', label: 'My Tickets', icon: Ticket },
-    { id: 'report', label: 'Report Issue', icon: AlertCircle },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -251,11 +251,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
           </motion.div>
         )}
 
-        {activeTab === 'report' && (
-          <motion.div key="report" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <TicketForm onSuccess={() => setActiveTab('tickets')} />
-          </motion.div>
-        )}
+        {/* Report tab removed */}
 
         {activeTab === 'settings' && (
           <motion.div key="settings" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>

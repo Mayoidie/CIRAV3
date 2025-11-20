@@ -31,7 +31,6 @@ interface AdminDashboardProps {
   logoClickTime: number;
   profileClickTime: number;
 }
-
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);

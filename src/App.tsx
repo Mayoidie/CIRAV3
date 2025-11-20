@@ -35,6 +35,7 @@ const AppContent: React.FC = () => {
   const { showToast } = useToast();
   const [logoClickTime, setLogoClickTime] = useState<number>(0);
   const [profileClickTime, setProfileClickTime] = useState<number>(0);
+  const [reportClickTime, setReportClickTime] = useState<number>(0);
 
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const logoutToastTimeoutId = useRef<NodeJS.Timeout | null>(null);
@@ -179,6 +180,7 @@ const AppContent: React.FC = () => {
   
   const handleLogoClick = () => setLogoClickTime(Date.now());
   const handleProfileClick = () => setProfileClickTime(Date.now());
+  const handleReportClick = () => setReportClickTime(Date.now());
 
   if (isLoading) {
     return (

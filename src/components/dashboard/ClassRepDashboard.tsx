@@ -30,7 +30,6 @@ interface ClassRepDashboardProps {
   logoClickTime: number;
   profileClickTime: number;
 }
-
 export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickTime, profileClickTime }) => {
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
@@ -56,6 +55,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
       setActiveTab('settings');
     }
   }, [profileClickTime]);
+
 
   useEffect(() => {
     const ticketsCollection = collection(db, 'tickets');
@@ -180,7 +180,6 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const tabs = [
     { id: 'my-tickets', label: 'My Tickets', icon: Ticket },
     { id: 'review', label: 'Review Tickets', icon: ClipboardList },
-    { id: 'report', label: 'Report Issue', icon: AlertCircle },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -478,11 +477,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
           </motion.div>
         )}
 
-        {activeTab === 'report' && (
-          <motion.div key="report" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <TicketForm onSuccess={() => { setActiveTab('my-tickets'); setMyTicketsFilter('approved'); }} />
-          </motion.div>
-        )}
+        {/* Report tab removed */}
 
         {activeTab === 'settings' && (
           <motion.div key="settings" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
