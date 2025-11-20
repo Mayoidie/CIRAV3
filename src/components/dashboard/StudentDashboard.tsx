@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Settings as SettingsIcon } from 'lucide-react';
+import { Ticket, Clock, CheckCircle, AlertCircle, FileText, Settings as SettingsIcon, Trash2 } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { TicketForm } from '../tickets/TicketForm';
 import { SettingsPage } from '../settings/SettingsPage';
+import { Button } from '../ui/button';
+import { useToast } from '../ui/toast-container';
 
 interface FormField {
   id: string;
@@ -16,7 +18,7 @@ interface FormField {
 
 interface TicketType {
   id: string;
-  status: 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected';
+  status: 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
@@ -33,9 +35,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'tickets' | 'report' | 'settings'>('tickets');
-  const [filter, setFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [filter, setFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved'>('all');
   const [searchField, setSearchField] = useState('all');
   const [searchValue, setSearchValue] = useState('');
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (logoClickTime > 0) {
@@ -75,6 +78,27 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
     return () => unsubscribe();
   }, []);
 
+  const handleConfirmResolution = async (ticketId: string) => {
+    try {
+      const ticketRef = doc(db, 'tickets', ticketId);
+      await updateDoc(ticketRef, { status: 'resolved' });
+      showToast('Ticket resolution confirmed', 'success');
+    } catch (error) {
+      showToast('Failed to confirm ticket resolution', 'error');
+    }
+  };
+
+  const handleDeleteTicket = async (ticketId: string) => {
+    if (confirm('Are you sure you want to delete this ticket?')) {
+      try {
+        await deleteDoc(doc(db, 'tickets', ticketId));
+        showToast('Ticket deleted successfully', 'success');
+      } catch (error) {
+        showToast('Failed to delete ticket', 'error');
+      }
+    }
+  };
+
   const getUniqueValues = (field: keyof TicketType) => {
     if (field === 'requestedAt') {
         return [
@@ -102,15 +126,15 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const submittedTickets = tickets.filter(t => t.status === 'submitted');
   const requestedTickets = tickets.filter(t => t.status === 'requested');
   const inProgressTickets = tickets.filter(t => t.status === 'in-progress');
+  const pendingResolutionTickets = tickets.filter(t => t.status === 'pending-resolution');
   const resolvedTickets = tickets.filter(t => t.status === 'resolved');
-  const rejectedTickets = tickets.filter(t => t.status === 'rejected');
 
   const stats = [
     { label: 'Submitted', count: submittedTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'submitted' as const },
     { label: 'Requested', count: requestedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'requested' as const },
     { label: 'In Progress', count: inProgressTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]', status: 'in-progress' as const },
+    { label: 'Pending Resolution', count: pendingResolutionTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending-resolution' as const },
     { label: 'Resolved', count: resolvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'resolved' as const },
-    { label: 'Rejected', count: rejectedTickets.length, icon: Clock, color: 'bg-[#FF4D4F]', status: 'rejected' as const },
   ];
 
   const tabs = [
@@ -178,8 +202,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                 <button onClick={() => setFilter('submitted')} style={{backgroundColor: filter === 'submitted' ? '#FFC107' : 'white', color: filter === 'submitted' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Submitted ({submittedTickets.length})</button>
                 <button onClick={() => setFilter('requested')} style={{backgroundColor: filter === 'requested' ? '#1DB954' : 'white', color: filter === 'requested' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Requested ({requestedTickets.length})</button>
                 <button onClick={() => setFilter('in-progress')} style={{backgroundColor: filter === 'in-progress' ? '#3942A7' : 'white', color: filter === 'in-progress' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>In Progress ({inProgressTickets.length})</button>
+                <button onClick={() => setFilter('pending-resolution')} style={{backgroundColor: filter === 'pending-resolution' ? '#FFC107' : 'white', color: filter === 'pending-resolution' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Pending Resolution ({pendingResolutionTickets.length})</button>
                 <button onClick={() => setFilter('resolved')} style={{backgroundColor: filter === 'resolved' ? '#1DB954' : 'white', color: filter === 'resolved' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Resolved ({resolvedTickets.length})</button>
-                <button onClick={() => setFilter('rejected')} style={{backgroundColor: filter === 'rejected' ? '#FF4D4F' : 'white', color: filter === 'rejected' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Rejected ({rejectedTickets.length})</button>
             </div>
 
             <div className="mb-6 flex gap-4">
@@ -214,6 +238,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Requested</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Notes</div></th>
+                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Actions</div></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -229,6 +254,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                                     ticket.status === 'submitted' ? 'bg-[#FFC107]' :
                                     ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                     ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
+                                    ticket.status === 'pending-resolution' ? 'bg-[#FFC107]' :
                                     ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                     'bg-[#FF4D4F]'
                                 }`}>
@@ -239,7 +265,17 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center">
                             {ticket.status === 'rejected' && ticket.rejectionNote && <p>Rejection: {ticket.rejectionNote}</p>}
-                            {ticket.status === 'resolved' && ticket.resolutionNote && <p>Resolution: {ticket.resolutionNote}</p>}
+                            {(ticket.status === 'resolved' || ticket.status === 'pending-resolution') && ticket.resolutionNote && <p>Resolution: {ticket.resolutionNote}</p>}
+                          </div>
+                        </td>
+                         <td className="px-6 py-4">
+                          <div className="flex items-center justify-center">
+                            {ticket.status === 'pending-resolution' && (
+                              <Button onClick={() => handleConfirmResolution(ticket.id)} variant="success">Confirm Resolution</Button>
+                            )}
+                            {ticket.status === 'resolved' && (
+                              <Button onClick={() => handleDeleteTicket(ticket.id)} variant="destructive"><Trash2 className="w-4 h-4 mr-2"/>Delete</Button>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -19,7 +19,7 @@ interface FormField {
 
 interface TicketType {
   id: string;
-  status: 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected';
+  status: 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
@@ -35,7 +35,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'tickets' | 'settings' | 'user-management' | 'form-editor'>('tickets');
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState('all');
   const [searchValue, setSearchValue] = useState('');
@@ -92,7 +92,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
     }
   };
 
-  const handleDeleteAllTickets = async (status: 'resolved' | 'rejected') => {
+  const handleDeleteAllTickets = async (status: 'resolved') => {
     const ticketsToDelete = tickets.filter(t => t.status === status);
     if (ticketsToDelete.length === 0) {
       showToast(`No ${status} tickets to delete.`, 'info');
@@ -122,13 +122,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
         updateData.requestedAt = new Date();
       }
 
-      if (status === 'resolved' && note) {
+      if (status === 'pending-resolution' && note) {
         updateData.resolutionNote = note;
       }
       
       await updateDoc(ticketRef, updateData);
       showToast(`Ticket status updated to ${status}`, 'success');
-      if (status === 'resolved') {
+      if (status === 'pending-resolution') {
         setResolutionNote(prev => {
           const updated = { ...prev };
           delete updated[ticketId];
@@ -169,7 +169,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
       showToast('Please provide a resolution note for the ticket.', 'error');
       return;
     }
-    await handleStatusUpdate(ticketId, 'resolved', note);
+    await handleStatusUpdate(ticketId, 'pending-resolution', note);
   };
 
   const getUniqueValues = (field: keyof TicketType) => {
@@ -199,15 +199,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
   const submittedTickets = tickets.filter(t => t.status === 'submitted');
   const requestedTickets = tickets.filter(t => t.status === 'requested');
   const inProgressTickets = tickets.filter(t => t.status === 'in-progress');
+  const pendingResolutionTickets = tickets.filter(t => t.status === 'pending-resolution');
   const resolvedTickets = tickets.filter(t => t.status === 'resolved');
-  const rejectedTickets = tickets.filter(t => t.status === 'rejected');
 
   const stats = [
     { label: 'Submitted', count: submittedTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'submitted' as const },
     { label: 'Requested', count: requestedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'requested' as const },
     { label: 'In Progress', count: inProgressTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]', status: 'in-progress' as const },
+    { label: 'Pending Resolution', count: pendingResolutionTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending-resolution' as const },
     { label: 'Resolved', count: resolvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'resolved' as const },
-    { label: 'Rejected', count: rejectedTickets.length, icon: XCircle, color: 'bg-[#FF4D4F]', status: 'rejected' as const },
   ];
 
   const tabs = [
@@ -300,20 +300,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
                   In Progress ({inProgressTickets.length})
                 </button>
                 <button 
+                  onClick={() => setReviewFilter('pending-resolution')} 
+                  style={{backgroundColor: reviewFilter === 'pending-resolution' ? '#FFC107' : 'white', color: reviewFilter === 'pending-resolution' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
+                  Pending Resolution ({pendingResolutionTickets.length})
+                </button>
+                <button 
                   onClick={() => setReviewFilter('resolved')} 
                   style={{backgroundColor: reviewFilter === 'resolved' ? '#1DB954' : 'white', color: reviewFilter === 'resolved' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Resolved ({resolvedTickets.length})
                 </button>
-                <button 
-                  onClick={() => setReviewFilter('rejected')} 
-                  style={{backgroundColor: reviewFilter === 'rejected' ? '#FF4D4F' : 'white', color: reviewFilter === 'rejected' ? 'white' : '#7A7A7A'}}
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
-                  Rejected ({rejectedTickets.length})
-                </button>
               </div>
-              {(reviewFilter === 'resolved' || reviewFilter === 'rejected') && 
-                <button onClick={() => handleDeleteAllTickets(reviewFilter as 'resolved' | 'rejected')} className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-600 transition-colors"><Trash2 className="w-5 h-5" />Delete All {reviewFilter.charAt(0).toUpperCase() + reviewFilter.slice(1)}</button>
+              {reviewFilter === 'resolved' && 
+                <button onClick={() => handleDeleteAllTickets('resolved')} className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-600 transition-colors"><Trash2 className="w-5 h-5" />Delete All Resolved</button>
               }
             </div>
 
@@ -364,6 +364,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ logoClickTime, p
                                     ticket.status === 'submitted' ? 'bg-[#FFC107]' :
                                     ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                     ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
+                                    ticket.status === 'pending-resolution' ? 'bg-[#FFC107]' :
                                     ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                     'bg-[#FF4D4F]'
                                 }`}>

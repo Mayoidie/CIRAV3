@@ -18,7 +18,7 @@ interface FormField {
 
 interface TicketType {
   id: string;
-  status: 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected';
+  status: 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
@@ -34,8 +34,8 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'review' | 'report' | 'settings'>('my-tickets');
-  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'requested' | 'in-progress' | 'resolved' | 'rejected'>('all');
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved'>('all');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved'>('all');
   const [searchField, setSearchField] = useState('all');
   const [searchValue, setSearchValue] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
@@ -73,7 +73,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
     const formFieldsCollection = query(collection(db, 'form-structure'), orderBy('order'));
     const unsubscribe = onSnapshot(formFieldsCollection, (snapshot) => {
       const fields = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormField));
-      const uniqueFields = fields.filter((field, index, self) => 
+      const uniqueFields = fields.filter((field, index, self) =>
         index === self.findIndex(f => f.name === field.name)
       );
       setFormFields(uniqueFields);
@@ -124,6 +124,16 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
     }
   };
 
+  const handleConfirmResolution = async (ticketId: string) => {
+    try {
+      const ticketRef = doc(db, 'tickets', ticketId);
+      await updateDoc(ticketRef, { status: 'resolved' });
+      showToast('Ticket resolution confirmed', 'success');
+    } catch (error) {
+      showToast('Failed to confirm ticket resolution', 'error');
+    }
+  };
+
   const getUniqueValues = (field: keyof TicketType, tickets: TicketType[]) => {
     if (field === 'requestedAt') {
         return [
@@ -166,15 +176,15 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const submittedReviewTickets = reviewTickets.filter(t => t.status === 'submitted');
   const requestedReviewTickets = reviewTickets.filter(t => t.status === 'requested');
   const inProgressReviewTickets = reviewTickets.filter(t => t.status === 'in-progress');
+  const pendingResolutionReviewTickets = reviewTickets.filter(t => t.status === 'pending-resolution');
   const resolvedReviewTickets = reviewTickets.filter(t => t.status === 'resolved');
-  const rejectedReviewTickets = reviewTickets.filter(t => t.status === 'rejected');
 
   const stats = [
     { label: 'Submitted for Review', count: submittedReviewTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'submitted' as const },
     { label: 'Requested', count: requestedReviewTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'requested' as const },
     { label: 'In Progress', count: inProgressReviewTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]', status: 'in-progress' as const },
+    { label: 'Pending Resolution', count: pendingResolutionReviewTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending-resolution' as const },
     { label: 'Resolved', count: resolvedReviewTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'resolved' as const },
-    { label: 'Rejected', count: rejectedReviewTickets.length, icon: XCircle, color: 'bg-[#FF4D4F]', status: 'rejected' as const },
   ];
 
   const tabs = [
@@ -185,8 +195,8 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
 
   const requestedMyTickets = myTickets.filter(t => t.status === 'requested');
   const inProgressMyTickets = myTickets.filter(t => t.status === 'in-progress');
+  const pendingResolutionMyTickets = myTickets.filter(t => t.status === 'pending-resolution');
   const resolvedMyTickets = myTickets.filter(t => t.status === 'resolved');
-  const rejectedMyTickets = myTickets.filter(t => t.status === 'rejected');
 
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
   const [hoveredFilter, setHoveredFilter] = useState<string | null>(null);
@@ -201,11 +211,11 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         {stats.map((stat, index) => (
-          <motion.div 
-            key={stat.label} 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            transition={{ delay: index * 0.1 }} 
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
             onClick={() => { setActiveTab('review'); setReviewFilter(stat.status); }}
             onMouseEnter={() => setHoveredStat(stat.status)}
             onMouseLeave={() => setHoveredStat(null)}
@@ -225,9 +235,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="flex border-b border-gray-200 overflow-x-auto">
           {tabs.map(tab => (
-            <button 
-              key={tab.id} 
-              onClick={() => setActiveTab(tab.id as any)} 
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
               style={{
@@ -245,35 +255,35 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
         {activeTab === 'my-tickets' && (
           <motion.div key="my-tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                <button 
-                  onClick={() => setMyTicketsFilter('all')} 
+                <button
+                  onClick={() => setMyTicketsFilter('all')}
                   style={{backgroundColor: myTicketsFilter === 'all' ? '#1B1F50' : 'white', color: myTicketsFilter === 'all' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   All ({myTickets.length})
                 </button>
-                <button 
-                  onClick={() => setMyTicketsFilter('requested')} 
+                <button
+                  onClick={() => setMyTicketsFilter('requested')}
                   style={{backgroundColor: myTicketsFilter === 'requested' ? '#1DB954' : 'white', color: myTicketsFilter === 'requested' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Requested ({requestedMyTickets.length})
                 </button>
-                <button 
-                  onClick={() => setMyTicketsFilter('in-progress')} 
+                <button
+                  onClick={() => setMyTicketsFilter('in-progress')}
                   style={{backgroundColor: myTicketsFilter === 'in-progress' ? '#3942A7' : 'white', color: myTicketsFilter === 'in-progress' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   In Progress ({inProgressMyTickets.length})
                 </button>
-                <button 
-                  onClick={() => setMyTicketsFilter('resolved')} 
+                 <button
+                  onClick={() => setMyTicketsFilter('pending-resolution')}
+                  style={{backgroundColor: myTicketsFilter === 'pending-resolution' ? '#FFC107' : 'white', color: myTicketsFilter === 'pending-resolution' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
+                  Pending Resolution ({pendingResolutionMyTickets.length})
+                </button>
+                <button
+                  onClick={() => setMyTicketsFilter('resolved')}
                   style={{backgroundColor: myTicketsFilter === 'resolved' ? '#1DB954' : 'white', color: myTicketsFilter === 'resolved' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Resolved ({resolvedMyTickets.length})
-                </button>
-                <button 
-                  onClick={() => setMyTicketsFilter('rejected')} 
-                  style={{backgroundColor: myTicketsFilter === 'rejected' ? '#FF4D4F' : 'white', color: myTicketsFilter === 'rejected' ? 'white' : '#7A7A7A'}}
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
-                  Rejected ({rejectedMyTickets.length})
                 </button>
             </div>
 
@@ -297,7 +307,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
             </div>
 
             {filteredMyTickets.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{`You haven\'t submitted any tickets in this category yet`}</p></div>
+              <div className="bg-white rounded-xl shadow-md p-12 text-center"><FileText className="w-16 h-16 mx-auto text-[#7A7A7A] mb-4" /><h3 className="text-[#1E1E1E] mb-2">No tickets found</h3><p className="text-[#7A7A7A]">{`You haven't submitted any tickets in this category yet`}</p></div>
             ) : (
               <div className="bg-white rounded-xl shadow-md overflow-x-auto">
                 <table className="w-full text-sm">
@@ -309,6 +319,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Requested</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Notes</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Actions</div></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -324,6 +335,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                                     ticket.status === 'submitted' ? 'bg-[#FFC107]' :
                                     ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                     ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
+                                    ticket.status === 'pending-resolution' ? 'bg-[#FFC107]' :
                                     ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                     'bg-[#FF4D4F]'
                                 }`}>
@@ -334,7 +346,17 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center">
                             {ticket.status === 'rejected' && ticket.rejectionNote && <p>Rejection: {ticket.rejectionNote}</p>}
-                            {ticket.status === 'resolved' && ticket.resolutionNote && <p>Resolution: {ticket.resolutionNote}</p>}
+                            {(ticket.status === 'resolved' || ticket.status === 'pending-resolution') && ticket.resolutionNote && <p>Resolution: {ticket.resolutionNote}</p>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center">
+                            {ticket.status === 'pending-resolution' && (
+                              <Button onClick={() => handleConfirmResolution(ticket.id)} variant="success">Confirm Resolution</Button>
+                            )}
+                            {ticket.status === 'resolved' && (
+                              <Button onClick={() => handleDeleteTicket(ticket.id)} variant="destructive"><Trash2 className="w-4 h-4 mr-2"/>Delete</Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -349,41 +371,41 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
         {activeTab === 'review' && (
           <motion.div key="review" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                <button 
-                  onClick={() => setReviewFilter('all')} 
+                <button
+                  onClick={() => setReviewFilter('all')}
                   style={{backgroundColor: reviewFilter === 'all' ? '#1B1F50' : 'white', color: reviewFilter === 'all' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   All ({reviewTickets.length})
                 </button>
-                <button 
-                  onClick={() => setReviewFilter('submitted')} 
+                <button
+                  onClick={() => setReviewFilter('submitted')}
                   style={{backgroundColor: reviewFilter === 'submitted' ? '#FFC107' : 'white', color: reviewFilter === 'submitted' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Submitted ({submittedReviewTickets.length})
                 </button>
-                <button 
-                  onClick={() => setReviewFilter('requested')} 
+                <button
+                  onClick={() => setReviewFilter('requested')}
                   style={{backgroundColor: reviewFilter === 'requested' ? '#1DB954' : 'white', color: reviewFilter === 'requested' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Requested ({requestedReviewTickets.length})
                 </button>
-                <button 
-                  onClick={() => setReviewFilter('in-progress')} 
+                <button
+                  onClick={() => setReviewFilter('in-progress')}
                   style={{backgroundColor: reviewFilter === 'in-progress' ? '#3942A7' : 'white', color: reviewFilter === 'in-progress' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   In Progress ({inProgressReviewTickets.length})
                 </button>
-                <button 
-                  onClick={() => setReviewFilter('resolved')} 
+                <button
+                  onClick={() => setReviewFilter('pending-resolution')}
+                  style={{backgroundColor: reviewFilter === 'pending-resolution' ? '#FFC107' : 'white', color: reviewFilter === 'pending-resolution' ? 'white' : '#7A7A7A'}}
+                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
+                  Pending Resolution ({pendingResolutionReviewTickets.length})
+                </button>
+                <button
+                  onClick={() => setReviewFilter('resolved')}
                   style={{backgroundColor: reviewFilter === 'resolved' ? '#1DB954' : 'white', color: reviewFilter === 'resolved' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
                   Resolved ({resolvedReviewTickets.length})
-                </button>
-                <button 
-                  onClick={() => setReviewFilter('rejected')} 
-                  style={{backgroundColor: reviewFilter === 'rejected' ? '#FF4D4F' : 'white', color: reviewFilter === 'rejected' ? 'white' : '#7A7A7A'}}
-                  className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
-                  Rejected ({rejectedReviewTickets.length})
                 </button>
             </div>
 
@@ -434,6 +456,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                                 ticket.status === 'submitted' ? 'bg-[#FFC107]' :
                                 ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                 ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
+                                ticket.status === 'pending-resolution' ? 'bg-[#FFC107]' :
                                 ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                 'bg-[#FF4D4F]'
                             }`}>
@@ -461,7 +484,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                                 )}
                               </>
                             )}
-                            {(ticket.status === 'resolved' || ticket.status === 'rejected') && 
+                            {(ticket.status === 'resolved' || ticket.status === 'rejected') &&
                               <Button onClick={() => handleDeleteTicket(ticket.id)} variant="destructive">
                                 <Trash2 className="w-4 h-4"/><span>Delete</span>
                               </Button>
