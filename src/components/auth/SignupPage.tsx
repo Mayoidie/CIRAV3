@@ -94,8 +94,49 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+
+    // Student ID formatting and validation
+    if (name === 'studentId') {
+      // Only allow digits and dash, auto-insert dash after 2 digits
+      let raw = value.replace(/[^\d]/g, '');
+      if (raw.length > 6) raw = raw.slice(0, 6);
+      let formatted = raw;
+      if (raw.length > 2) {
+        formatted = raw.slice(0, 2) + '-' + raw.slice(2);
+      }
+      setFormData(prev => ({ ...prev, [name]: formatted }));
+      if (errors[name]) {
+        const error = validateField(name, formatted, { ...formData, [name]: formatted });
+        if (!error) {
+          setErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[name];
+            return newErrors;
+          });
+        }
+      }
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
+
+    // Live validation for confirmPassword
+    if (name === 'confirmPassword' || name === 'password') {
+      const confirmValue = name === 'confirmPassword' ? value : formData.confirmPassword;
+      const passwordValue = name === 'password' ? value : formData.password;
+      const confirmError = validateField('confirmPassword', confirmValue, { ...formData, password: passwordValue, confirmPassword: confirmValue });
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        if (confirmError) {
+          newErrors.confirmPassword = confirmError;
+        } else {
+          delete newErrors.confirmPassword;
+        }
+        return newErrors;
+      });
+    }
+
+    if (errors[name] && name !== 'confirmPassword') {
       const error = validateField(name, value, { ...formData, [name]: value });
       if (!error) {
         setErrors(prev => {
@@ -104,17 +145,6 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin, onSig
           return newErrors;
         });
       }
-    }
-
-    if (name === 'password') {
-      const confirmError = validateField('confirmPassword', formData.confirmPassword, { ...formData, password: value });
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        if (!confirmError) {
-          delete newErrors.confirmPassword;
-        }
-        return newErrors;
-      });
     }
   };
 
