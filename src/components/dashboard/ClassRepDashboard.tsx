@@ -18,11 +18,11 @@ interface FormField {
 
 interface TicketType {
   id: string;
-  status: 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected';
+  status: 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
-  approvedAt?: { toDate: () => Date };
+  requestedAt?: { toDate: () => Date };
   [key: string]: any; // Allow dynamic properties
 }
 
@@ -34,8 +34,8 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'review' | 'report' | 'settings'>('my-tickets');
-  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'requested' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchField, setSearchField] = useState('all');
   const [searchValue, setSearchValue] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
@@ -81,13 +81,13 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
     return () => unsubscribe();
   }, []);
 
-  const handleApprove = async (ticketId: string) => {
+  const handleRequest = async (ticketId: string) => {
     try {
       const ticketRef = doc(db, 'tickets', ticketId);
-      await updateDoc(ticketRef, { status: 'approved', approvedAt: new Date() });
-      showToast('Ticket approved successfully', 'success');
+      await updateDoc(ticketRef, { status: 'requested', requestedAt: new Date() });
+      showToast('Ticket requested successfully', 'success');
     } catch (error) {
-      showToast('Failed to approve ticket', 'error');
+      showToast('Failed to request ticket', 'error');
     }
   };
 
@@ -125,11 +125,11 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   };
 
   const getUniqueValues = (field: keyof TicketType, tickets: TicketType[]) => {
-    if (field === 'approvedAt') {
+    if (field === 'requestedAt') {
         return [
             ...new Set(
                 tickets
-                    .map(ticket => ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : null)
+                    .map(ticket => ticket.requestedAt ? ticket.requestedAt.toDate().toLocaleDateString() : null)
                     .filter(date => date !== null) as string[]
             ),
         ];
@@ -146,7 +146,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
     .filter(ticket => {
         if (searchField === 'all' || !searchValue) return true;
         const fieldValue = ticket[searchField as keyof TicketType];
-        if (searchField === 'approvedAt' && fieldValue instanceof Date) {
+        if (searchField === 'requestedAt' && fieldValue instanceof Date) {
             return fieldValue.toLocaleDateString() === searchValue;
         }
         return String(fieldValue).toLowerCase() === searchValue.toLowerCase();
@@ -157,21 +157,21 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
     .filter(ticket => {
         if (searchField === 'all' || !searchValue) return true;
         const fieldValue = ticket[searchField as keyof TicketType];
-        if (searchField === 'approvedAt' && fieldValue instanceof Date) {
+        if (searchField === 'requestedAt' && fieldValue instanceof Date) {
             return fieldValue.toLocaleDateString() === searchValue;
         }
         return String(fieldValue).toLowerCase() === searchValue.toLowerCase();
     });
 
-  const pendingReviewTickets = reviewTickets.filter(t => t.status === 'pending');
-  const approvedReviewTickets = reviewTickets.filter(t => t.status === 'approved');
+  const submittedReviewTickets = reviewTickets.filter(t => t.status === 'submitted');
+  const requestedReviewTickets = reviewTickets.filter(t => t.status === 'requested');
   const inProgressReviewTickets = reviewTickets.filter(t => t.status === 'in-progress');
   const resolvedReviewTickets = reviewTickets.filter(t => t.status === 'resolved');
   const rejectedReviewTickets = reviewTickets.filter(t => t.status === 'rejected');
 
   const stats = [
-    { label: 'Pending Review', count: pendingReviewTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending' as const },
-    { label: 'Approved', count: approvedReviewTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'approved' as const },
+    { label: 'Submitted for Review', count: submittedReviewTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'submitted' as const },
+    { label: 'Requested', count: requestedReviewTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'requested' as const },
     { label: 'In Progress', count: inProgressReviewTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]', status: 'in-progress' as const },
     { label: 'Resolved', count: resolvedReviewTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'resolved' as const },
     { label: 'Rejected', count: rejectedReviewTickets.length, icon: XCircle, color: 'bg-[#FF4D4F]', status: 'rejected' as const },
@@ -183,7 +183,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
-  const approvedMyTickets = myTickets.filter(t => t.status === 'approved');
+  const requestedMyTickets = myTickets.filter(t => t.status === 'requested');
   const inProgressMyTickets = myTickets.filter(t => t.status === 'in-progress');
   const resolvedMyTickets = myTickets.filter(t => t.status === 'resolved');
   const rejectedMyTickets = myTickets.filter(t => t.status === 'rejected');
@@ -252,10 +252,10 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                   All ({myTickets.length})
                 </button>
                 <button 
-                  onClick={() => setMyTicketsFilter('approved')} 
-                  style={{backgroundColor: myTicketsFilter === 'approved' ? '#1DB954' : 'white', color: myTicketsFilter === 'approved' ? 'white' : '#7A7A7A'}}
+                  onClick={() => setMyTicketsFilter('requested')} 
+                  style={{backgroundColor: myTicketsFilter === 'requested' ? '#1DB954' : 'white', color: myTicketsFilter === 'requested' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
-                  Approved ({approvedMyTickets.length})
+                  Requested ({requestedMyTickets.length})
                 </button>
                 <button 
                   onClick={() => setMyTicketsFilter('in-progress')} 
@@ -283,7 +283,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                     {formFields.map(field => (
                         <option key={field.id} value={field.name}>{field.label}</option>
                     ))}
-                    <option value="approvedAt">Date Approved</option>
+                    <option value="requestedAt">Date Requested</option>
                     <option value="status">Status</option>
                 </select>
                 {searchField !== 'all' && (
@@ -306,7 +306,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                       {formFields.map(field => (
                         <th key={field.id} scope="col" className="px-6 py-3"><div className="flex items-center justify-center">{field.label}</div></th>
                       ))}
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Approved</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Requested</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Notes</div></th>
                     </tr>
@@ -317,12 +317,12 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                         {formFields.map(field => (
                             <td key={field.id} className="px-6 py-4"><div className="flex items-center justify-center">{ticket[field.name] || 'N/A'}</div></td>
                         ))}
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
+                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.requestedAt ? ticket.requestedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
                         <td className="px-6 py-4">
                             <div className="flex items-center justify-center">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white ${
-                                    ticket.status === 'pending' ? 'bg-[#FFC107]' :
-                                    ticket.status === 'approved' ? 'bg-[#1DB954]' :
+                                    ticket.status === 'submitted' ? 'bg-[#FFC107]' :
+                                    ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                     ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
                                     ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                     'bg-[#FF4D4F]'
@@ -356,16 +356,16 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                   All ({reviewTickets.length})
                 </button>
                 <button 
-                  onClick={() => setReviewFilter('pending')} 
-                  style={{backgroundColor: reviewFilter === 'pending' ? '#FFC107' : 'white', color: reviewFilter === 'pending' ? 'white' : '#7A7A7A'}}
+                  onClick={() => setReviewFilter('submitted')} 
+                  style={{backgroundColor: reviewFilter === 'submitted' ? '#FFC107' : 'white', color: reviewFilter === 'submitted' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
-                  Pending ({pendingReviewTickets.length})
+                  Submitted ({submittedReviewTickets.length})
                 </button>
                 <button 
-                  onClick={() => setReviewFilter('approved')} 
-                  style={{backgroundColor: reviewFilter === 'approved' ? '#1DB954' : 'white', color: reviewFilter === 'approved' ? 'white' : '#7A7A7A'}}
+                  onClick={() => setReviewFilter('requested')} 
+                  style={{backgroundColor: reviewFilter === 'requested' ? '#1DB954' : 'white', color: reviewFilter === 'requested' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
-                  Approved ({approvedReviewTickets.length})
+                  Requested ({requestedReviewTickets.length})
                 </button>
                 <button 
                   onClick={() => setReviewFilter('in-progress')} 
@@ -393,7 +393,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                     {formFields.map(field => (
                         <option key={field.id} value={field.name}>{field.label}</option>
                     ))}
-                    <option value="approvedAt">Date Approved</option>
+                    <option value="requestedAt">Date Requested</option>
                     <option value="status">Status</option>
                 </select>
                 {searchField !== 'all' && (
@@ -416,7 +416,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                       {formFields.map(field => (
                         <th key={field.id} scope="col" className="px-6 py-3"><div className="flex items-center justify-center">{field.label}</div></th>
                       ))}
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Approved</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Requested</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Actions</div></th>
                     </tr>
@@ -427,12 +427,12 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                         {formFields.map(field => (
                             <td key={field.id} className="px-6 py-4"><div className="flex items-center justify-center">{ticket[field.name] || 'N/A'}</div></td>
                         ))}
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
+                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.requestedAt ? ticket.requestedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white ${
-                                ticket.status === 'pending' ? 'bg-[#FFC107]' :
-                                ticket.status === 'approved' ? 'bg-[#1DB954]' :
+                                ticket.status === 'submitted' ? 'bg-[#FFC107]' :
+                                ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                 ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
                                 ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                 'bg-[#FF4D4F]'
@@ -443,11 +443,11 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col items-center gap-2">
-                            {ticket.status === 'pending' && (
+                            {ticket.status === 'submitted' && (
                               <>
                                 {!showRejectionNote[ticket.id] ? (
                                   <div className="flex gap-2">
-                                    <Button onClick={() => handleApprove(ticket.id)} variant="success"><Check className="w-4 h-4"/><span>Approve</span></Button>
+                                    <Button onClick={() => handleRequest(ticket.id)} variant="success"><Check className="w-4 h-4"/><span>Request</span></Button>
                                     <Button onClick={() => setShowRejectionNote(prev => ({ ...prev, [ticket.id]: true }))} variant="destructive"><X className="w-4 h-4"/><span>Reject</span></Button>
                                   </div>
                                 ) : (

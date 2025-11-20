@@ -16,11 +16,11 @@ interface FormField {
 
 interface TicketType {
   id: string;
-  status: 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected';
+  status: 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
-  approvedAt?: { toDate: () => Date };
+  requestedAt?: { toDate: () => Date };
   [key: string]: any; // Allow dynamic properties
 }
 
@@ -33,7 +33,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'tickets' | 'report' | 'settings'>('tickets');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'in-progress' | 'resolved' | 'rejected'>('all');
+  const [filter, setFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'resolved' | 'rejected'>('all');
   const [searchField, setSearchField] = useState('all');
   const [searchValue, setSearchValue] = useState('');
 
@@ -76,11 +76,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   }, []);
 
   const getUniqueValues = (field: keyof TicketType) => {
-    if (field === 'approvedAt') {
+    if (field === 'requestedAt') {
         return [
             ...new Set(
                 tickets
-                    .map(ticket => ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : null)
+                    .map(ticket => ticket.requestedAt ? ticket.requestedAt.toDate().toLocaleDateString() : null)
                     .filter(date => date !== null) as string[]
             ),
         ];
@@ -93,21 +93,21 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
     .filter(ticket => {
         if (searchField === 'all' || !searchValue) return true;
         const fieldValue = ticket[searchField as keyof TicketType];
-        if (searchField === 'approvedAt' && ticket.approvedAt) {
-             return ticket.approvedAt.toDate().toLocaleDateString() === searchValue;
+        if (searchField === 'requestedAt' && ticket.requestedAt) {
+             return ticket.requestedAt.toDate().toLocaleDateString() === searchValue;
         }
         return String(fieldValue).toLowerCase() === searchValue.toLowerCase();
     });
   
-  const pendingTickets = tickets.filter(t => t.status === 'pending');
-  const approvedTickets = tickets.filter(t => t.status === 'approved');
+  const submittedTickets = tickets.filter(t => t.status === 'submitted');
+  const requestedTickets = tickets.filter(t => t.status === 'requested');
   const inProgressTickets = tickets.filter(t => t.status === 'in-progress');
   const resolvedTickets = tickets.filter(t => t.status === 'resolved');
   const rejectedTickets = tickets.filter(t => t.status === 'rejected');
 
   const stats = [
-    { label: 'Pending', count: pendingTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending' as const },
-    { label: 'Approved', count: approvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'approved' as const },
+    { label: 'Submitted', count: submittedTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'submitted' as const },
+    { label: 'Requested', count: requestedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'requested' as const },
     { label: 'In Progress', count: inProgressTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]', status: 'in-progress' as const },
     { label: 'Resolved', count: resolvedTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'resolved' as const },
     { label: 'Rejected', count: rejectedTickets.length, icon: Clock, color: 'bg-[#FF4D4F]', status: 'rejected' as const },
@@ -175,8 +175,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
           <motion.div key="tickets" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
                 <button onClick={() => setFilter('all')} style={{backgroundColor: filter === 'all' ? '#1B1F50' : 'white', color: filter === 'all' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>All ({tickets.length})</button>
-                <button onClick={() => setFilter('pending')} style={{backgroundColor: filter === 'pending' ? '#FFC107' : 'white', color: filter === 'pending' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Pending ({pendingTickets.length})</button>
-                <button onClick={() => setFilter('approved')} style={{backgroundColor: filter === 'approved' ? '#1DB954' : 'white', color: filter === 'approved' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Approved ({approvedTickets.length})</button>
+                <button onClick={() => setFilter('submitted')} style={{backgroundColor: filter === 'submitted' ? '#FFC107' : 'white', color: filter === 'submitted' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Submitted ({submittedTickets.length})</button>
+                <button onClick={() => setFilter('requested')} style={{backgroundColor: filter === 'requested' ? '#1DB954' : 'white', color: filter === 'requested' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Requested ({requestedTickets.length})</button>
                 <button onClick={() => setFilter('in-progress')} style={{backgroundColor: filter === 'in-progress' ? '#3942A7' : 'white', color: filter === 'in-progress' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>In Progress ({inProgressTickets.length})</button>
                 <button onClick={() => setFilter('resolved')} style={{backgroundColor: filter === 'resolved' ? '#1DB954' : 'white', color: filter === 'resolved' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Resolved ({resolvedTickets.length})</button>
                 <button onClick={() => setFilter('rejected')} style={{backgroundColor: filter === 'rejected' ? '#FF4D4F' : 'white', color: filter === 'rejected' ? 'white' : '#7A7A7A'}} className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>Rejected ({rejectedTickets.length})</button>
@@ -188,7 +188,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                     {formFields.map(field => (
                         <option key={field.id} value={field.name}>{field.label}</option>
                     ))}
-                    <option value="approvedAt">Date Approved</option>
+                    <option value="requestedAt">Date Requested</option>
                     <option value="status">Status</option>
                 </select>
                 {searchField !== 'all' && (
@@ -211,7 +211,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                       {formFields.map(field => (
                         <th key={field.id} scope="col" className="px-6 py-3"><div className="flex items-center justify-center">{field.label}</div></th>
                       ))}
-                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Approved</div></th>
+                      <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Date Requested</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Status</div></th>
                       <th scope="col" className="px-6 py-3"><div className="flex items-center justify-center">Notes</div></th>
                     </tr>
@@ -222,12 +222,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                         {formFields.map(field => (
                             <td key={field.id} className="px-6 py-4"><div className="flex items-center justify-center">{ticket[field.name] || 'N/A'}</div></td>
                         ))}
-                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.approvedAt ? ticket.approvedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
+                        <td className="px-6 py-4"><div className="flex items-center justify-center">{ticket.requestedAt ? ticket.requestedAt.toDate().toLocaleDateString() : 'N/A'}</div></td>
                         <td className="px-6 py-4">
                             <div className="flex items-center justify-center">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full text-white ${
-                                    ticket.status === 'pending' ? 'bg-[#FFC107]' :
-                                    ticket.status === 'approved' ? 'bg-[#1DB954]' :
+                                    ticket.status === 'submitted' ? 'bg-[#FFC107]' :
+                                    ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                     ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
                                     ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                     'bg-[#FF4D4F]'

@@ -43,6 +43,7 @@ const FormEditor = () => {
   const [loading, setLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   const [showAddField, setShowAddField] = useState(false);
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
   const formFieldsCollection = collection(db, 'form-structure');
 
@@ -74,7 +75,7 @@ const FormEditor = () => {
     const fieldToAdd: any = {
       label: newField.label,
       type: newField.type,
-      name: newField.label.toLowerCase().replace(/\\s/g, '-'),
+      name: newField.label.toLowerCase().replace(/\s/g, '-'),
       id: `new-${Date.now()}`,
       order: editedFormFields.length,
     };
@@ -104,27 +105,22 @@ const FormEditor = () => {
       const { id, ...fieldData } = field;
       const data: any = { ...fieldData, order: index };
       
-      // Sanitize top-level conditional
       if(data.conditional && (!data.conditional.field || !data.conditional.value)) {
         delete data.conditional;
       }
       
-      // Sanitize conditional option sets
       if (data.optionSets) {
           data.optionSets = data.optionSets.filter((set: OptionSet) => {
-              // Remove incomplete conditional sets
               if (set.condition && (!set.condition.field || !set.condition.value)) {
                   return false;
               }
               return true;
           });
 
-          // If a set has no options, it might also be removed, unless it's the default
           data.optionSets = data.optionSets.filter((set: OptionSet) => {
               return set.options.length > 0 || !set.condition;
           });
           
-          // Cleanup old options field if optionSets is used and valid
           if(data.optionSets.length > 0) {
             delete data.options;
           }
@@ -244,18 +240,15 @@ const FormEditor = () => {
 
       let allOptions: string[] = [];
 
-      // Handle simple dropdowns with 'options' array
       if (field.options) {
           allOptions.push(...field.options);
       }
-      // Handle complex dropdowns with 'optionSets'
       else if (field.optionSets) {
           field.optionSets.forEach(set => {
               allOptions.push(...set.options);
           });
       }
 
-      // Return unique options
       return [...new Set(allOptions)];
   }
 
@@ -267,13 +260,27 @@ const FormEditor = () => {
           <button 
             key={field.id} 
             onClick={() => handleEditField(field)}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${editingField?.id === field.id ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}>
+            onMouseEnter={() => setHoveredTab(field.id)}
+            onMouseLeave={() => setHoveredTab(null)}
+            style={{
+              backgroundColor: editingField?.id === field.id ? '#3942A7' : (hoveredTab === field.id ? '#4d57c8' : 'white'),
+              color: editingField?.id === field.id || hoveredTab === field.id ? 'white' : '#7A7A7A',
+              cursor: 'pointer'
+            }}
+            className="px-4 py-2 text-sm font-medium transition-colors">
             {field.label}
           </button>
         ))}
         <button 
             onClick={() => { setEditingField(null); setShowAddField(true); }}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${showAddField ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}>
+            onMouseEnter={() => setHoveredTab('add-new')}
+            onMouseLeave={() => setHoveredTab(null)}
+            style={{
+              backgroundColor: showAddField ? '#3942A7' : (hoveredTab === 'add-new' ? '#4d57c8' : 'white'),
+              color: showAddField || hoveredTab === 'add-new' ? 'white' : '#7A7A7A',
+              cursor: 'pointer'
+            }}
+            className="px-4 py-2 text-sm font-medium transition-colors">
             <Plus className="inline-block w-4 h-4 mr-1" />
             Add New
         </button>
@@ -286,7 +293,7 @@ const FormEditor = () => {
               <input
                   type="text"
                   value={editingField.label}
-                  onChange={e => setEditingField({ ...editingField, label: e.target.value, name: e.target.value.toLowerCase().replace(/\\s/g, '-') })}
+                  onChange={e => setEditingField({ ...editingField, label: e.target.value, name: e.target.value.toLowerCase().replace(/\s/g, '-') })}
                   className="w-full p-2 border rounded"
               />
           </div>
@@ -479,7 +486,7 @@ const FormEditor = () => {
                       <option value="">Always show</option>
                       {dropdownFields.map(f => (
                           <option key={f.id} value={f.id}>{f.label}</option>
-                      ))}\
+                      ))}
                   </select>
                   {newField.conditional?.field && (
                       <>
@@ -493,7 +500,7 @@ const FormEditor = () => {
                               <option value="any">Any value</option>
                               {getConditionalFieldOptions(newField.conditional.field).map(opt => (
                                   <option key={opt} value={opt}>{opt}</option>
-                              ))}\
+                              ))}
                           </select>
                       </>
                   )}
