@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Send, ArrowLeft } from 'lucide-react';
 import { useToast } from '../ui/toast-container';
@@ -13,8 +13,10 @@ interface ForgotPasswordPageProps {
 
 export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigateToLogin }) => {
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({ email: false });
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  // ...existing code...
   const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,6 +60,38 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
     }
   };
 
+  // Email field logic (same as Login/Signup)
+  const handleEmailFocus = () => {
+    if (!email) {
+      setEmail('@plv.edu.ph');
+    }
+  };
+
+  const handleEmailClick = () => {
+    if (emailInputRef.current && email === '@plv.edu.ph') {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  };
+
+  useEffect(() => {
+    if (email === '@plv.edu.ph' && emailInputRef.current) {
+      setTimeout(() => {
+        emailInputRef.current?.setSelectionRange(0, 0);
+      }, 0);
+    }
+  }, [email]);
+
+  const handleEmailBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '@plv.edu.ph') {
+      setEmail('');
+    } else if (value && !value.endsWith('@plv.edu.ph')) {
+      setEmail(value + '@plv.edu.ph');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#050A30] via-[#1B1F50] to-[#3942A7] flex items-center justify-center p-4">
       <motion.div
@@ -73,13 +107,13 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-              className="w-20 h-20 bg-white rounded-full mx-auto mb-4 flex items-center justify-center"
-              style={{ width: '100px', height: '100px' }}
+              className="w-20 h-20 mx-auto mb-4 flex items-center justify-center"
+              style={{ width: '120px', height: '120px' }}
             >
               <ImageWithFallback
                 src={MainLogoWhite}
                 alt="CIRA"
-                className="w-full h-full object-cover rounded-full"
+                className="w-full h-full object-cover"
               />
             </motion.div>
             <p className="text-white/80">Reset your password</p>
@@ -90,22 +124,26 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
             <p className="text-[#7A7A7A] mb-6">
               Enter your email address and we'll send you a link to reset your password.
             </p>
-            
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-[#1E1E1E] mb-2">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#7A7A7A]" />
+                <div className={`flex items-center border rounded-lg ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#3942A7] transition-all px-3`}>
+                  <Mail className="w-5 h-5 text-[#7A7A7A] mr-3" />
                   <input
-                    type="email"
+                    ref={emailInputRef}
+                    type="text"
+                    name="email"
+                    autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-[#FF4D4F] bg-red-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3942A7] transition-all`}
+                    onChange={e => setEmail(e.target.value)}
+                    onFocus={handleEmailFocus}
+                    onClick={handleEmailClick}
+                    onBlur={handleEmailBlur}
+                    className="w-full py-3 pl-0 border-none bg-transparent focus:outline-none focus:ring-0 flex-1"
                     placeholder="your.email@plv.edu.ph"
                   />
                 </div>
               </div>
-
               <motion.button
                 type="submit"
                 disabled={isLoading}
@@ -123,7 +161,6 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
                 )}
               </motion.button>
             </form>
-
             <div className="mt-6 text-center">
               <button
                 onClick={onNavigateToLogin}
@@ -134,7 +171,6 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               </button>
             </div>
           </div>
-
           {/* Footer */}
           <div className="bg-[#F9FAFB] px-8 py-4 text-center border-t">
             <p className="text-[#7A7A7A]">College of Engineering and Information Technology</p>

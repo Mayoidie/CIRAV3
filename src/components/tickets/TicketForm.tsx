@@ -231,7 +231,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
       }
 
       const currentUserData = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      const status = currentUserData.role === 'class-representative' ? 'approved' : 'pending';
+      const status = currentUserData.role === 'class-representative' ? 'requested' : 'submitted';
 
       const submissionData: Record<string, any> = {};
       formFields
@@ -249,9 +249,9 @@ export const TicketForm: React.FC<TicketFormProps> = ({ onSuccess }) => {
       });
 
       showToast(
-        status === 'approved'
-          ? 'Ticket created and automatically approved!'
-          : 'Ticket submitted successfully! Sent to Class Representative for approval.',
+        status === 'requested'
+          ? 'Ticket created and automatically requested!'
+          : 'Ticket submitted successfully! Sent to Class Representative for request.',
         'success'
       );
 
