@@ -18,7 +18,7 @@ interface FormField {
 
 interface TicketType {
   id: string;
-  status: 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'rejected';
+  status: 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'rejected' | 'pending-class-rep-confirmation';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
@@ -34,8 +34,8 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const [allTickets, setAllTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'review' | 'report' | 'settings'>('my-tickets');
-  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved'>('all');
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved'>('all');
+  const [myTicketsFilter, setMyTicketsFilter] = useState<'all' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'pending-class-rep-confirmation'>('all');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'pending-class-rep-confirmation'>('all');
   const [searchField, setSearchField] = useState('all');
   const [searchValue, setSearchValue] = useState('');
   const [rejectionNote, setRejectionNote] = useState<{ [key: string]: string }>({});
@@ -176,14 +176,14 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
   const submittedReviewTickets = reviewTickets.filter(t => t.status === 'submitted');
   const requestedReviewTickets = reviewTickets.filter(t => t.status === 'requested');
   const inProgressReviewTickets = reviewTickets.filter(t => t.status === 'in-progress');
-  const pendingResolutionReviewTickets = reviewTickets.filter(t => t.status === 'pending-resolution');
+  const requestForValidationReviewTickets = reviewTickets.filter(t => t.status === 'pending-class-rep-confirmation');
   const resolvedReviewTickets = reviewTickets.filter(t => t.status === 'resolved');
 
   const stats = [
     { label: 'Submitted for Review', count: submittedReviewTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'submitted' as const },
     { label: 'Requested', count: requestedReviewTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'requested' as const },
     { label: 'In Progress', count: inProgressReviewTickets.length, icon: AlertCircle, color: 'bg-[#3942A7]', status: 'in-progress' as const },
-    { label: 'Pending Resolution', count: pendingResolutionReviewTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending-resolution' as const },
+    { label: 'Request for Validation', count: requestForValidationReviewTickets.length, icon: Clock, color: 'bg-[#FFC107]', status: 'pending-class-rep-confirmation' as const },
     { label: 'Resolved', count: resolvedReviewTickets.length, icon: CheckCircle, color: 'bg-[#1DB954]', status: 'resolved' as const },
   ];
 
@@ -354,6 +354,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                             {ticket.status === 'pending-resolution' && (
                               <Button onClick={() => handleConfirmResolution(ticket.id)} variant="success">Confirm Resolution</Button>
                             )}
+                             {ticket.status === 'pending-class-rep-confirmation' && (
+                              <Button variant="success" disabled>Pending Resolution</Button>
+                            )}
                             {ticket.status === 'resolved' && (
                               <Button onClick={() => handleDeleteTicket(ticket.id)} variant="destructive"><Trash2 className="w-4 h-4 mr-2"/>Delete</Button>
                             )}
@@ -396,10 +399,10 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                   In Progress ({inProgressReviewTickets.length})
                 </button>
                 <button
-                  onClick={() => setReviewFilter('pending-resolution')}
-                  style={{backgroundColor: reviewFilter === 'pending-resolution' ? '#FFC107' : 'white', color: reviewFilter === 'pending-resolution' ? 'white' : '#7A7A7A'}}
+                  onClick={() => setReviewFilter('pending-class-rep-confirmation')}
+                  style={{backgroundColor: reviewFilter === 'pending-class-rep-confirmation' ? '#FFC107' : 'white', color: reviewFilter === 'pending-class-rep-confirmation' ? 'white' : '#7A7A7A'}}
                   className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap cursor-pointer border border-gray-300`}>
-                  Pending Resolution ({pendingResolutionReviewTickets.length})
+                  Request for Validation ({requestForValidationReviewTickets.length})
                 </button>
                 <button
                   onClick={() => setReviewFilter('resolved')}
@@ -457,6 +460,7 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                                 ticket.status === 'requested' ? 'bg-[#1DB954]' :
                                 ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
                                 ticket.status === 'pending-resolution' ? 'bg-[#FFC107]' :
+                                ticket.status === 'pending-class-rep-confirmation' ? 'bg-[#FFC107]' :
                                 ticket.status === 'resolved' ? 'bg-[#1DB954]' :
                                 'bg-[#FF4D4F]'
                             }`}>
@@ -483,6 +487,9 @@ export const ClassRepDashboard: React.FC<ClassRepDashboardProps> = ({ logoClickT
                                   </div>
                                 )}
                               </>
+                            )}
+                             {ticket.status === 'pending-class-rep-confirmation' && (
+                              <Button onClick={() => handleConfirmResolution(ticket.id)} variant="success">Confirm Resolution</Button>
                             )}
                             {(ticket.status === 'resolved' || ticket.status === 'rejected') &&
                               <Button onClick={() => handleDeleteTicket(ticket.id)} variant="destructive">

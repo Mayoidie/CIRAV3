@@ -18,7 +18,7 @@ interface FormField {
 
 interface TicketType {
   id: string;
-  status: 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'rejected';
+  status: 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'rejected' | 'pending-class-rep-confirmation';
   userId: string;
   rejectionNote?: string;
   resolutionNote?: string;
@@ -35,7 +35,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [activeTab, setActiveTab] = useState<'tickets' | 'report' | 'settings'>('tickets');
-  const [filter, setFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved'>('all');
+  const [filter, setFilter] = useState<'all' | 'submitted' | 'requested' | 'in-progress' | 'pending-resolution' | 'resolved' | 'pending-class-rep-confirmation'>('all');
   const [searchField, setSearchField] = useState('all');
   const [searchValue, setSearchValue] = useState('');
   const { showToast } = useToast();
@@ -81,8 +81,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const handleConfirmResolution = async (ticketId: string) => {
     try {
       const ticketRef = doc(db, 'tickets', ticketId);
-      await updateDoc(ticketRef, { status: 'resolved' });
-      showToast('Ticket resolution confirmed', 'success');
+      await updateDoc(ticketRef, { status: 'pending-class-rep-confirmation' });
+      showToast('Resolution confirmed and sent to Class Rep for final review', 'success');
     } catch (error) {
       showToast('Failed to confirm ticket resolution', 'error');
     }
@@ -113,7 +113,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   };
 
   const filteredTickets = tickets
-    .filter(t => filter === 'all' || t.status === filter)
+    .filter(t => {
+        if (filter === 'all') return true;
+        if (filter === 'pending-resolution') {
+            return t.status === 'pending-resolution' || t.status === 'pending-class-rep-confirmation';
+        }
+        return t.status === filter;
+    })
     .filter(ticket => {
         if (searchField === 'all' || !searchValue) return true;
         const fieldValue = ticket[searchField as keyof TicketType];
@@ -126,7 +132,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
   const submittedTickets = tickets.filter(t => t.status === 'submitted');
   const requestedTickets = tickets.filter(t => t.status === 'requested');
   const inProgressTickets = tickets.filter(t => t.status === 'in-progress');
-  const pendingResolutionTickets = tickets.filter(t => t.status === 'pending-resolution');
+  const pendingResolutionTickets = tickets.filter(t => t.status === 'pending-resolution' || t.status === 'pending-class-rep-confirmation');
   const resolvedTickets = tickets.filter(t => t.status === 'resolved');
 
   const stats = [
@@ -256,6 +262,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                                     ticket.status === 'in-progress' ? 'bg-[#3942A7]' :
                                     ticket.status === 'pending-resolution' ? 'bg-[#FFC107]' :
                                     ticket.status === 'resolved' ? 'bg-[#1DB954]' :
+                                    ticket.status === 'pending-class-rep-confirmation' ? 'bg-[#FFC107]' :
                                     'bg-[#FF4D4F]'
                                 }`}>
                                     {ticket.status}
@@ -265,13 +272,16 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ logoClickTim
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center">
                             {ticket.status === 'rejected' && ticket.rejectionNote && <p>Rejection: {ticket.rejectionNote}</p>}
-                            {(ticket.status === 'resolved' || ticket.status === 'pending-resolution') && ticket.resolutionNote && <p>Resolution: {ticket.resolutionNote}</p>}
+                            {(ticket.status === 'resolved' || ticket.status === 'pending-resolution' || ticket.status === 'pending-class-rep-confirmation') && ticket.resolutionNote && <p>Resolution: {ticket.resolutionNote}</p>}
                           </div>
                         </td>
                          <td className="px-6 py-4">
                           <div className="flex items-center justify-center">
                             {ticket.status === 'pending-resolution' && (
                               <Button onClick={() => handleConfirmResolution(ticket.id)} variant="success">Confirm Resolution</Button>
+                            )}
+                            {ticket.status === 'pending-class-rep-confirmation' && (
+                              <Button variant="success" disabled>Pending Resolution</Button>
                             )}
                             {ticket.status === 'resolved' && (
                               <Button onClick={() => handleDeleteTicket(ticket.id)} variant="destructive"><Trash2 className="w-4 h-4 mr-2"/>Delete</Button>
